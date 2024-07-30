@@ -59,6 +59,7 @@ class Frame:
 
     def __repr__(self):
         return f"Frame(name={self.frame_name}, timestamp={self.timestamp}, status={self.status}, coordinates=({self.coordinates.latitude}, {self.coordinates.longitude}))"
+
 class FrameManager:
     def __init__(self):
         self.frames = []
