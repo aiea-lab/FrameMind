@@ -5,7 +5,6 @@ from datetime import datetime
 class Status(Enum):
     Active = 'Active'
     Idle = 'Idle'
-    Error = 'Error'
     Operational = 'Operational'
     Malfunctioning = 'Malfunctioning'
     InProgress = 'InProgress'
@@ -22,7 +21,6 @@ class Status(Enum):
     LaneDeparture = 'LaneDeparture'
     Object = 'Object'
     Event = 'Event'
-    Error = 'Error'
     Camera = 'Camera'
     LiDAR = 'LiDAR'
     Radar = 'Radar'
@@ -31,7 +29,7 @@ class Status(Enum):
     RadarSignal = 'RadarSignal'
     Info = 'Info'
     Warning = 'Warning'
-    LogError = 'Error'  # Avoiding name conflict with Error status
+    LogError = 'LogError'
     SensorReading = 'SensorReading'
     LogMessage = 'LogMessage'
     ExternalReport = 'ExternalReport'
@@ -40,6 +38,10 @@ class Coordinate:
     def __init__(self, latitude: float, longitude: float):
         self.latitude = latitude
         self.longitude = longitude
+        
+    def __repr__(self):
+        return f"Coordinate(latitude={self.latitude}, longitude={self.longitude})"
+
 
 class Frame:
     def __init__(self, frame_name: str, timestamp: datetime, status: Status, coordinates: Coordinate):
@@ -93,8 +95,8 @@ class FrameManager:
         if frame:
             return frame.get_data(data_type)
         return []
-
-# Example usage
+    
+    
 if __name__ == "__main__":
     # Create a frame manager
     frame_manager = FrameManager()
