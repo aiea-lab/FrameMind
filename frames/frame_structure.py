@@ -38,7 +38,7 @@ class Coordinate:
     def __init__(self, latitude: float, longitude: float):
         self.latitude = latitude
         self.longitude = longitude
-        
+
     def __repr__(self):
         return f"Coordinate(latitude={self.latitude}, longitude={self.longitude})"
 
@@ -58,6 +58,10 @@ class Frame:
 
     def get_data(self, data_type: Status):
         return self.data.get(data_type, [])
+    
+    def check_missing_data(self, required_data_types: List[Status]) -> List[Status]:
+        missing_data = [data_type for data_type in required_data_types if data_type not in self.data or not self.data[data_type]]
+        return missing_data
 
     def __repr__(self):
         return f"Frame(name={self.frame_name}, timestamp={self.timestamp}, status={self.status}, coordinates=({self.coordinates.latitude}, {self.coordinates.longitude}))"
