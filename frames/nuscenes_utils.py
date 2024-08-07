@@ -15,6 +15,7 @@ def create_frame_from_sample(nusc, sample, frame_manager):
     frame_name = sample['token']
     timestamp = extract_timestamp(sample)
     status = Status.Active  # Example status
+    
     # Assuming these coordinates are placeholders; real coordinates need to be sourced correctly
     coordinates = Coordinate(
         latitude=0.0,  # Replace with correct data
