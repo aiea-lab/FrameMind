@@ -50,6 +50,7 @@ class Frame:
         self.status = status
         self.coordinates = coordinates
         self.data = {}
+        
 
     def add_data(self, data_type: Status, data: Union[str, List, dict]):
         if data_type not in self.data:
