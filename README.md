@@ -43,10 +43,9 @@ git clone https://github.com/yourusername/frames.git
 cd frame
 
 
-2. Create a virtual environment and activate it:
+2. Create a virtual conda environment and activate it:
 
-python -m venv venv
-source venv/bin/activate 
+conda active env_name
 
 
 3. Install the required packages:
