@@ -1,8 +1,11 @@
 from typing import Any, Dict, List, Optional
-from .frame import Frame
-from .status import Status
-from .coordinate import Coordinate
+from frame import Frame
+from status import Status
+from coordinate import Coordinate
 from datetime import datetime
+
+class FrameNotFoundError(Exception):
+    pass
 
 class FrameManager:
     def __init__(self):
@@ -45,9 +48,24 @@ class FrameManager:
         return frame
 
     def add_nuscenes_annotation_to_frame(self, frame_name: str, annotation: Dict[str, Any]):
-        """
-        Add nuScenes annotation to an existing frame.
-        """
         frame = self.get_frame(frame_name)
-        if frame:
-            frame.add_nuscenes_annotation(annotation)
+        frame.add_nuscenes_annotation(annotation)
+
+    def bulk_create_frames(self, frame_data: List[Dict[str, Any]]) -> List[Frame]:
+        return [self.create_frame(**data) for data in frame_data]
+
+    def search_frames(self, **kwargs) -> List[Frame]:
+        return [frame for frame in self.frames if all(getattr(frame, k) == v for k, v in kwargs.items())]
+
+    def delete_frame(self, name: str):
+        frame = self.get_frame(name)
+        self.frames.remove(frame)
+        del self.frame_index[name]
+
+    def update_frame(self, name: str, **kwargs):
+        frame = self.get_frame(name)
+        for key, value in kwargs.items():
+            setattr(frame, key, value)
+
+    def get_all_frames(self) -> List[Frame]:
+        return self.frames.copy()

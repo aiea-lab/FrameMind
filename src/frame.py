@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from .status import Status
-from .coordinate import Coordinate
+from status import Status
+from coordinate import Coordinate
 
 class Frame:
     def __init__(self, name: str, timestamp: datetime, status: Status, coordinates: Coordinate):
@@ -62,9 +62,10 @@ class Frame:
             'timestamp': self.timestamp.isoformat(),
             'status': self.status.value,
             'coordinates': {
-                'latitude': self.coordinates.latitude,
-                'longitude': self.coordinates.longitude
-            },
+            'x': self.coordinates.x,
+            'y': self.coordinates.y,
+            'z': self.coordinates.z if hasattr(self.coordinates, 'z') else None
+        },
             'slots': self.slots,
             'events': self.events,
             'errors': self.errors,
