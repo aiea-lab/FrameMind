@@ -4,8 +4,10 @@ from status import Status
 from coordinate import Coordinate
 
 class Frame:
-    def __init__(self, name: str, timestamp: datetime, status: Status, coordinates: Coordinate):
+    def __init__(self, name: str,elements, timestamp: datetime, status: Status, coordinates: Coordinate):
         self.name = name
+        self.elements = elements
+        self.related_frames = []
         self.timestamp = timestamp
         self.status = status
         self.coordinates = coordinates
@@ -46,6 +48,9 @@ class Frame:
         for child in self.children:
             all_slots.update(child.get_all_slots())
         return all_slots
+    
+    def add_related_frame(self, frame):
+        self.related_frames.append(frame)
 
     def find_frame_by_name(self, name: str) -> Optional['Frame']:
         if self.name == name:
