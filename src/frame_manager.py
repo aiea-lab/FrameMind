@@ -11,8 +11,10 @@ class FrameManager:
     def __init__(self):
         self.frames: List[Frame] = []
 
-    def create_frame(self, name: str, timestamp: datetime, status: Status, coordinates: Coordinate) -> Frame:
-        frame = Frame(name, timestamp, status, coordinates)
+    def create_frame(self, name: str, timestamp: datetime, status: Status, coordinates: Coordinate, elements=None) -> Frame:
+        if elements is None:
+            elements = []  # or some other default value
+        frame = Frame(name, elements, timestamp, status, coordinates)
         self.frames.append(frame)
         return frame
 
