@@ -4,7 +4,7 @@ from status import Status
 from coordinate import Coordinate
 
 class Frame:
-    def __init__(self, name: str,elements, timestamp: datetime, status: Status, coordinates: Coordinate):
+    def __init__(self, name: str, elements, timestamp: datetime, status: Status, coordinates: Coordinate):
         self.name = name
         self.elements = elements
         self.related_frames = []
