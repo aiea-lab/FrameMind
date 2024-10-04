@@ -71,3 +71,15 @@ class FrameManager:
 
     def get_all_frames(self) -> List[Frame]:
         return self.frames.copy()
+    
+    def add_nuscenes_annotation_to_frame(self, frame_name: str, annotation: Dict[str, Any]):
+        """Add nuScenes annotation data to an existing frame."""
+        frame = self.get_frame(frame_name)
+        if frame:
+            frame.category = annotation.get('category', frame.category)
+            frame.num_lidar_pts = annotation.get('num_lidar_pts', frame.num_lidar_pts)
+            frame.num_radar_pts = annotation.get('num_radar_pts', frame.num_radar_pts)
+            frame.instance_token = annotation.get('instance_token', frame.instance_token)
+            frame.visibility_token = annotation.get('visibility_token', frame.visibility_token)
+        else:
+            raise FrameNotFoundError(f"Frame with name {frame_name} not found.")

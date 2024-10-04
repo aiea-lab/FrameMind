@@ -2,6 +2,8 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from status import Status
 from coordinate import Coordinate
+import numpy as np
+
 
 class Frame:
     def __init__(self, name: str, elements, timestamp: datetime, status: Status, coordinates: Coordinate):
@@ -87,3 +89,29 @@ class Frame:
 
     def __repr__(self):
         return f"Frame(name={self.name}, timestamp={self.timestamp}, status={self.status}, coordinates={self.coordinates}, events={len(self.events)}, errors={len(self.errors)}, children={len(self.children)})"
+    
+    def add_neighbor(self, frame):
+        """Add a neighboring frame that this frame can communicate with."""
+        self.neighbor_frames.append(frame)
+
+    def request_info_from_frame(self, frame):
+        """Request information from a neighboring frame."""
+        if frame in self.neighbor_frames:
+            return frame.shared_info
+        else:
+            return None
+        
+    def share_info_with_neighbors(self):
+        """Share information (e.g., object locations) with neighboring frames."""
+        for neighbor in self.neighbor_frames:
+            neighbor.receive_info(self.name, self.shared_info)
+
+    def receive_info(self, frame_name, info):
+        """Receive information from another frame."""
+        print(f"Frame {self.name} received info from {frame_name}: {info}")
+        self.shared_info.update(info)
+
+    def predict_future_state(self, current_velocity, time_horizon=1.0):
+        """Predict future state based on current velocity and a time horizon."""
+        predicted_location = np.array(self.coordinates) + np.array(current_velocity) * time_horizon
+        return predicted_location
