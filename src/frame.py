@@ -4,7 +4,6 @@ from status import Status
 from coordinate import Coordinate
 import numpy as np
 
-
 class Frame:
     def __init__(self, name: str, elements, timestamp: datetime, status: Status, coordinates: Coordinate):
         self.name = name
@@ -14,6 +13,13 @@ class Frame:
         self.status = status
         self.coordinates = coordinates
         self.slots: Dict[str, Any] = {}
+        self.neighbor_frames: List['Frame'] = [] 
+        self.shared_info = {
+            'coordinates': (self.coordinates.x, self.coordinates.y, self.coordinates.z),
+            'status': self.status.name,
+            'annotations': [],  # List to store annotations for sharing
+            'lidar_path': None
+        }
         self.children: List['Frame'] = []
         self.parent: Optional['Frame'] = None
         self.events: List[str] = []

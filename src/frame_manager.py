@@ -83,3 +83,23 @@ class FrameManager:
             frame.visibility_token = annotation.get('visibility_token', frame.visibility_token)
         else:
             raise FrameNotFoundError(f"Frame with name {frame_name} not found.")
+
+    def add_neighbors(self, frame_name_1: str, frame_name_2: str):
+        """Add two frames as neighbors to each other."""
+        frame_1 = self.get_frame(frame_name_1)
+        frame_2 = self.get_frame(frame_name_2)
+        if frame_1 and frame_2:
+            frame_1.add_neighbor(frame_2)
+            frame_2.add_neighbor(frame_1)
+        else:
+            raise FrameNotFoundError(f"One or both frames not found: {frame_name_1}, {frame_name_2}")
+
+    def simulate_communication(self):
+        """Simulate frame communication."""
+        for frame in self.frames:
+            # Each frame shares info with its neighbors
+            frame.share_info_with_neighbors()
+
+            # Each frame requests info from its neighbors
+            for neighbor in frame.neighbor_frames:
+                frame.request_info_from_frame(neighbor)
