@@ -9,15 +9,16 @@ class Frame:
         self.name = name
         self.elements = elements
         self.related_frames = []
+        self.annotations = []
         self.timestamp = timestamp
         self.status = status
         self.coordinates = coordinates
         self.slots: Dict[str, Any] = {}
-        self.neighbor_frames: List['Frame'] = [] 
+        self.neighbor_frames: List['Frame'] = []
         self.shared_info = {
             'coordinates': (self.coordinates.x, self.coordinates.y, self.coordinates.z),
             'status': self.status.name,
-            'annotations': [],  # List to store annotations for sharing
+            'annotations': self.annotations,  # List to store annotations for sharing
             'lidar_path': None
         }
         self.children: List['Frame'] = []
@@ -106,11 +107,17 @@ class Frame:
             return frame.shared_info
         else:
             return None
-        
+    
+    def add_nuscenes_annotation(self, annotation):
+        self.annotations.append(annotation)
+
     def share_info_with_neighbors(self):
-        """Share information (e.g., object locations) with neighboring frames."""
+        # Share annotations with neighbors
         for neighbor in self.neighbor_frames:
-            neighbor.receive_info(self.name, self.shared_info)
+            neighbor.shared_info[self.name] = {
+                'annotations': self.annotations,
+                'coordinates': self.coordinates
+            }
 
     def receive_info(self, frame_name, info):
         """Receive information from another frame."""

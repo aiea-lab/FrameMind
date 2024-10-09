@@ -97,9 +97,9 @@ class FrameManager:
     def simulate_communication(self):
         """Simulate frame communication."""
         for frame in self.frames:
-            # Each frame shares info with its neighbors
+            # Each frame shares its annotations with its neighbors
             frame.share_info_with_neighbors()
 
-            # Each frame requests info from its neighbors
-            for neighbor in frame.neighbor_frames:
-                frame.request_info_from_frame(neighbor)
+        # Each frame requests info from its neighbors
+        for neighbor in frame.neighbor_frames:
+            frame.request_info_from_frame(neighbor)
