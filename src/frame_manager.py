@@ -3,6 +3,7 @@ from frame import Frame
 from status import Status
 from coordinate import Coordinate
 from datetime import datetime
+import numpy as np
 
 class FrameNotFoundError(Exception):
     pass
@@ -72,6 +73,10 @@ class FrameManager:
     def get_all_frames(self) -> List[Frame]:
         return self.frames.copy()
     
+    def get_number_of_frames(self) -> int:
+        """Returns the total number of frames managed by FrameManager."""
+        return len(self.frames)
+    
     def add_nuscenes_annotation_to_frame(self, frame_name: str, annotation: Dict[str, Any]):
         """Add nuScenes annotation data to an existing frame."""
         frame = self.get_frame(frame_name)
@@ -103,3 +108,41 @@ class FrameManager:
         # Each frame requests info from its neighbors
         for neighbor in frame.neighbor_frames:
             frame.request_info_from_frame(neighbor)
+
+    def combine_similar_frames(self, distance_threshold: float, time_threshold: float):
+        combined_frames = []
+        visited = set()
+        
+        for i, frame1 in enumerate(self.frames):
+            if i in visited:
+                continue
+            combined_frame = frame1
+            for j, frame2 in enumerate(self.frames):
+                if i != j and j not in visited:
+                    if self.are_frames_similar(frame1, frame2, distance_threshold, time_threshold):
+                        combined_frame = self.merge_frames(combined_frame, frame2)
+                        visited.add(j)
+            combined_frames.append(combined_frame)
+            visited.add(i)
+        
+        self.frames = combined_frames
+
+    def are_frames_similar(self, frame1: Frame, frame2: Frame, distance_threshold: float, time_threshold: float) -> bool:
+       # Extract x, y, z coordinates from the Coordinate object
+        coord1 = np.array([frame1.coordinates.x, frame1.coordinates.y, frame1.coordinates.z])
+        coord2 = np.array([frame2.coordinates.x, frame2.coordinates.y, frame2.coordinates.z])
+        
+        # Calculate spatial distance between the two frames
+        distance = np.linalg.norm(coord1 - coord2)
+        
+        # Calculate time difference in seconds
+        time_diff = abs(frame1.timestamp - frame2.timestamp).total_seconds()
+        
+        # Return whether both spatial distance and time difference are within thresholds
+        return distance <= distance_threshold and time_diff <= time_threshold
+
+    def merge_frames(self, frame1: Frame, frame2: Frame) -> Frame:
+        # Merge annotations and sensor data
+        frame1.annotations.extend(frame2.annotations)
+        frame1.slots.update(frame2.slots)  # Combine sensor slots (like lidar, camera data)
+        return frame1
