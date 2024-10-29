@@ -1,7 +1,6 @@
 import unittest
 from datetime import datetime
 
-
 class TestMissingData(unittest.TestCase):
     def setUp(self):
         self.frame_manager = FrameManager()
