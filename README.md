@@ -12,7 +12,19 @@
 <!--- BADGES: END --->
 
 ## Key Concept: Static Frame Condensation
-Static frame condensation is an innovative approach aimed at streamlining the analysis of static frames by reducing redundancy and retaining only the most essential information. This project leverages advanced algorithms to condense frames without compromising critical data integrity, making it particularly useful for:
+This project focuses on condensing and analyzing frames, initially handling static frames for now. This system aims to streamline data from various sources (e.g., NuScenes dataset) by extracting symbolic representations, which can be applied in autonomous systems and object state prediction.
+
+## Goals
+1. **Condense Frames:** Transform dense, complex data into simplified symbolic representations for easier processing.
+2. **Dynamic Frame Condensation:** Build upon static frame condensation to enable real-time data updates and adaptive frame structures.
+3. **Symbolic Parsing:** Use a symbolic parser to convert data into human-readable text, enhancing interpretability.
+
+## Folder Structure
+
+- **`src/condensing`**: Contains the primary code for condensing static frames.
+- **`src/symbolic_parser`**: Houses files for parsing and converting frames into symbolic representations.
+- **`dynamic_frame_condensation`**: Future work that will expand upon static frame condensation to enable dynamic, real-time updates.
+
 
 - **Autonomous Systems**: Enhancing decision-making by reducing the volume of static data frames processed, thereby optimizing computational resources.
 - **Natural Language Processing (NLP)**: Improving text condensation and summarization tasks by filtering repetitive frame data in symbolic language models.
