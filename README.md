@@ -8,29 +8,29 @@
 [![GitHub license](https://img.shields.io/badge/License-MIT-blu.svg)][#license-gh-package]
 
 [#license-gh-package]: https://lbesson.mit-license.org/
-[#arxiv-paper-package]: https://arxiv.org/abs/2407.11418
+[#arxiv-paper-package]: 
 [#pypi-package]: https://pypi.org/project/lotus-ai/
 <!--- BADGES: END --->
 
-## Key Concept : Static Frame Condensation
+## Key Concept: Static Frame Condensation
 Static frame condensation is an innovative approach aimed at streamlining the analysis of static frames by reducing redundancy and retaining only the most essential information. This project leverages advanced algorithms to condense frames without compromising critical data integrity, making it particularly useful for:
 
 - **Autonomous Systems**: Enhancing decision-making by reducing the volume of static data frames processed, thereby optimizing computational resources.
 - **Natural Language Processing (NLP)**: Improving text condensation and summarization tasks by filtering repetitive frame data in symbolic language models.
 
 The repository contains tools and methods for:
-- **Identifying Redundant Frames**: Employing statistical analysis and clustering techniques to detect and remove duplicate or similar frames from static datasets.
-- **Optimized Data Structures**: Utilizing efficient data structures that facilitate rapid condensation of static frames, enabling faster processing speeds.
+- **Identifying Redundant Frames**: Employing statistical analysis and clustering techniques to detect duplicate or similar frames from static datasets.
+- **Optimized Data Structures**: Utilizing efficient data structures that facilitate condensation of static frames, enabling faster processing speeds.
 - **Real-World Applications**: With applications in AI, robotics, and NLP, this project serves as a foundation for further research into frame-based communication, decision-making models, and symbolic processing.
 
 The main goal of this repository is to provide a robust framework for researchers and developers working on frame condensation techniques, with a focus on both efficiency and effectiveness in data handling.
 
 #Installation
 # Clone this repository
-git clone https://github.com/your-username/static-frame-condensation.git
+git clone https://github.com/aiea-lab/frames.git
 
 # Navigate to the project directory
-cd static-frame-condensation
+cd scripts/nuscenes_main.py
 
 # Install dependencies
 pip install -r requirements.txt
