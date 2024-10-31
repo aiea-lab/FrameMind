@@ -8,8 +8,7 @@
 [![GitHub license](https://img.shields.io/badge/License-MIT-blu.svg)][#license-gh-package]
 
 [#license-gh-package]: https://lbesson.mit-license.org/
-[#arxiv-paper-package]: 
-[#pypi-package]: https://pypi.org/project/lotus-ai/
+
 <!--- BADGES: END --->
 
 ## Key Concept: Static Frame Condensation
