@@ -1,6 +1,6 @@
 # Frame-Based Monitoring
 
-<!--- BADGES: START --->[![Colab Demo](https://colab.research.google.com/assets/colab-badge.svg)]()
+<!--- BADGES: START --->
 
 [![Documentation Status](https://readthedocs.org/projects/lotus-ai/badge/?version=latest)]()
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/lotus-ai)][#pypi-package]
