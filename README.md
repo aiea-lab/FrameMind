@@ -26,26 +26,26 @@ The repository contains tools and methods for:
 The main goal of this repository is to provide a robust framework for researchers and developers working on frame condensation techniques, with a focus on both efficiency and effectiveness in data handling.
 
 #Installation
-# Clone this repository
+- Clone this repository
 git clone https://github.com/aiea-lab/frames.git
 
-# Navigate to the project directory
+- Navigate to the project directory
 cd scripts/nuscenes_main.py
 
-# Install dependencies
+- Install dependencies
 pip install -r requirements.txt
 
 #Usage
-# Import the static frame condensation module
+- Import the static frame condensation module
 from condensation import StaticFrameCondensor
 
-# Initialize the condensor with your data
+- Initialize the condensor with your data
 condensor = StaticFrameCondensor(data)
 
-# Run the condensation process
+- Run the condensation process
 condensed_data = condensor.condense()
 
-# Save or analyze the condensed data
+- Save or analyze the condensed data
 save(condensed_data, 'output_file_path')
 
 #Examples
