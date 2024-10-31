@@ -2,9 +2,9 @@
 
 <!--- BADGES: START --->
 
-[![Documentation Status](https://readthedocs.org/projects/lotus-ai/badge/?version=latest)]()
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/lotus-ai)]
-[![PyPI](https://img.shields.io/pypi/v/lotus-ai)]
+![Documentation Status](https://readthedocs.org/projects/lotus-ai/badge/?version=latest)]()
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/lotus-ai)
+![PyPI](https://img.shields.io/pypi/v/lotus-ai)
 [![GitHub license](https://img.shields.io/badge/License-MIT-blu.svg)][#license-gh-package]
 
 [#license-gh-package]: https://lbesson.mit-license.org/
