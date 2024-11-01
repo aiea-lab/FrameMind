@@ -12,7 +12,11 @@
 <!--- BADGES: END --->
 
 ## Key Concept: Static Frame Condensation
-This project focuses on condensing and analyzing frames, initially handling static frames for now. This system aims to streamline data from various sources (e.g., NuScenes dataset) by extracting symbolic representations, which can be applied in autonomous systems and object state prediction.
+This project presents a frame condensation system that processes large, complex datasets, primarily focusing on data relevant to autonomous systems. The system condenses data from individual frames and explores symbolic representation to simplify and enhance the usability of this information for tasks like object state prediction and environmental analysis.
+
+Initially, this project focuses on static frame condensation, where each frame is individually analyzed and simplified into a symbolic form that captures essential details. These static representations act as the foundation for subsequent steps, allowing for a high-level understanding of the scene without requiring every detail.
+
+By leveraging data from sources such as the NuScenes dataset, the system condenses information into symbolic forms, facilitating easier data interpretation and efficient computational processing. Through the symbolic representation of frame data, this project aims to support object tracking, motion prediction, and obstacle avoidance in real-world applications where quick, adaptive responses are crucial.
 
 ## Goals
 1. **Condense Frames:** Transform dense, complex data into simplified symbolic representations for easier processing.
