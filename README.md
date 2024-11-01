@@ -50,9 +50,13 @@ cd scripts/nuscenes_main.py
 - Install dependencies
 pip install -r requirements.txt
 
+
 #Usage
 - Import the static frame condensation module
 from condensation import StaticFrameCondensor
+
+- Nuscenes dataset download
+
 
 - Initialize the condensor with your data
 condensor = StaticFrameCondensor(data)
@@ -63,7 +67,15 @@ condensed_data = condensor.condense()
 - Save or analyze the condensed data
 save(condensed_data, 'output_file_path')
 
+Input:
+Frame structure
+
+Output: 
+Frames --
+
 #Examples
+
+One scene of the dataset --> How the frame gets condensed
 
 #Condensation
 Contributions are welcome! Please fork this repository, create a branch, and submit a pull request with your changes.
