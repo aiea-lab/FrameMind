@@ -1,35 +1,64 @@
-from typing import List, Tuple
+from typing import List, Dict
 import numpy as np
+from datetime import datetime
+
+class TrajectoryPoint:
+    """Represents a single point in a trajectory, containing position and timestamp."""
+    def __init__(self, timestamp: datetime, position: np.ndarray):
+        self.timestamp = timestamp
+        self.position = position
 
 class Trajectory:
+    """Class that manages a trajectory, defined by a series of points over time."""
     def __init__(self, object_id: str):
         self.object_id = object_id
-        self.positions: List[Tuple[float, float, float]] = []  # (x, y, z) positions
-        self.timestamps: List[float] = []  # Timestamps for each position
+        self.points: List[TrajectoryPoint] = []
 
-    def add_position(self, position: Tuple[float, float, float], timestamp: float):
-        """Add a new position for the object at a given time."""
-        self.positions.append(position)
-        self.timestamps.append(timestamp)
+    def add_point(self, timestamp: datetime, position: List[float]):
+        """Add a new point to the trajectory."""
+        position_array = np.array(position)
+        self.points.append(TrajectoryPoint(timestamp, position_array))
 
-    def calculate_distances(self) -> List[float]:
-        """Calculate distances between consecutive positions."""
-        distances = []
-        for i in range(1, len(self.positions)):
-            dist = np.linalg.norm(np.array(self.positions[i]) - np.array(self.positions[i - 1]))
-            distances.append(dist)
-        return distances
+    def get_positions(self) -> np.ndarray:
+        """Returns all positions in the trajectory as a NumPy array."""
+        return np.array([point.position for point in self.points])
 
-    def calculate_speeds(self) -> List[float]:
-        """Calculate speed between consecutive positions."""
-        speeds = []
-        for i in range(1, len(self.positions)):
-            distance = np.linalg.norm(np.array(self.positions[i]) - np.array(self.positions[i - 1]))
-            time_delta = self.timestamps[i] - self.timestamps[i - 1]
-            speed = distance / time_delta if time_delta > 0 else 0
-            speeds.append(speed)
-        return speeds
+    def get_timestamps(self) -> List[datetime]:
+        """Returns a list of all timestamps in the trajectory."""
+        return [point.timestamp for point in self.points]
 
-    def get_trajectory(self) -> List[Tuple[float, float, float]]:
-        """Get the complete trajectory as a list of positions."""
-        return self.positions
+    def to_dict(self) -> Dict:
+        """Convert the trajectory to a dictionary format."""
+        return {
+            "object_id": self.object_id,
+            "trajectory": [
+                {"timestamp": point.timestamp.isoformat(), "position": point.position.tolist()}
+                for point in self.points
+            ]
+        }
+
+class TrajectoryManager:
+    """Manages trajectories for multiple objects in a scene."""
+    def __init__(self):
+        self.trajectories: Dict[str, Trajectory] = {}
+
+    def add_point(self, object_id: str, timestamp: datetime, position: List[float]):
+        """Add a point to an object's trajectory, creating a new trajectory if necessary."""
+        if object_id not in self.trajectories:
+            self.trajectories[object_id] = Trajectory(object_id)
+        self.trajectories[object_id].add_point(timestamp, position)
+
+    def get_trajectory(self, object_id: str) -> Trajectory:
+        """Retrieve the trajectory for a specific object."""
+        if object_id in self.trajectories:
+            return self.trajectories[object_id]
+        else:
+            raise ValueError(f"No trajectory found for object ID: {object_id}")
+
+    def get_all_trajectories(self) -> List[Trajectory]:
+        """Returns all trajectories as a list."""
+        return list(self.trajectories.values())
+
+    def to_dict(self) -> List[Dict]:
+        """Convert all trajectories to a dictionary format."""
+        return [traj.to_dict() for traj in self.trajectories.values()]
