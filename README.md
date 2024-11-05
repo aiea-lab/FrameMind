@@ -11,26 +11,43 @@
 
 <!--- BADGES: END --->
 
-Overview:
-The Frame-Based Monitoring project is a powerful toolkit for parsing, condensing, and analyzing frame data with a focus on enhancing efficiency, interpretability, and actionable insights. Built around a modular workflow, this project enables applications in autonomous systems, symbolic processing, and natural language processing (NLP) through the use of static frame condensation, symbolic parsing, and trajectory analysis.
+## Overview:
+The **Frame-Based Monitoring** project is a sophisticated toolkit designed for advanced parsing, condensation, and analysis of high-dimensional frame data, with a particular emphasis on static frame condensation. This research-driven framework addresses core challenges in data optimization, interpretability, and real-time decision-making, providing a modular approach to frame-based data processing. Its applications span autonomous systems, symbolic processing, and natural language processing (NLP), enabling foundational research into efficient data handling and symbolic AI.
 
-Key features of this project include:
+## Research Objectives
 
-Static Frame Condensation: The project introduces a StaticCondenser module that aggregates multiple frames into a single, condensed frame. By averaging or combining frame attributes (e.g., position, velocity), this condensation process reduces data redundancy while preserving essential scene information. Condensed frames help streamline computations and enable efficient data handling for downstream applications.
+### Data Optimization via Frame Condensation
+The project introduces a **Static Frame Condensation** module to aggregate multiple frames into a singular, representative frame, reducing data redundancy while retaining essential scene dynamics. The condensation process leverages statistical aggregation (e.g., averaging positions and velocities) to synthesize a condensed representation that supports computational efficiency. This work aims to demonstrate that condensed frames can maintain fidelity to the original scene while significantly minimizing data volume, a key advancement for data-intensive applications.
 
-Symbolic Interpretation: Using a SymbolicParser, this toolkit converts raw numerical data from frames into symbolic representations, making the data more interpretable for real-time analysis and decision-making. This symbolic layer bridges the gap between complex data inputs and human-readable formats, supporting explainable AI applications.
+### Symbolic Parsing for Enhanced Interpretability: 
+A symbolic interpretation layer, operationalized through a Symbolic Parser, converts raw numerical frame data into structured symbolic representations. This transformation allows data to be rendered in a human-readable format, facilitating interpretability and bridging the gap between machine-generated data and human-centered analysis. Symbolic parsing is particularly impactful in AI explainability, supporting applications where transparency and interpretability of data-driven insights are paramount.
 
-Trajectory Analysis: The toolkit provides tools to track object movement across frames, computing trajectories that predict future object states. This is especially valuable in autonomous systems, where understanding object paths and motion trends is crucial for predictive decision-making.
+### Predictive Analysis through Trajectory Computation: 
+The project integrates a Trajectory Analysis component to extract object trajectories across frames, providing insights into object state evolution over time. By tracking the motion paths of objects within a scene, this module supports predictive analytics in applications such as autonomous driving, where accurate motion forecasting is critical. This work investigates how trajectory modeling can enhance both the predictive power and reliability of real-time decision systems.
 
-The Frame-Based Monitoring project supports applications in fields like autonomous driving, robotics, and AI-driven analytics by enabling real-time data optimization, symbolic representation, and predictive analysis. By consolidating complex data into condensed and interpretable formats, this repository provides a foundation for developing scalable, efficient, and explainable AI solutions.
+## Contribution to the Field
 
-## Key Concept: Static Frame Condensation
-This project focuses on condensing and analyzing frames, initially handling static frames for now. This system aims to streamline data from various sources (e.g., NuScenes dataset) by extracting symbolic representations, which can be applied in autonomous systems and object state prediction.
+The **Frame-Based Monitoring** project offers a structured, modular approach to high-dimensional frame data processing, with applications across autonomous systems, robotics, and AI-driven analytics. Through innovations in static frame condensation, symbolic parsing, and trajectory analysis, this project establishes a framework that advances both computational efficiency and data interpretability.
 
-## Goals
-1. **Condense Frames:** Transform dense, complex data into simplified symbolic representations for easier processing.
-2. **Dynamic Frame Condensation (Future):** Build upon static frame condensation to enable real-time data updates and adaptive frame structures.
-3. **Symbolic Parsing:** Use a symbolic parser to convert data into human-readable text, enhancing interpretability.
+By addressing scalability, symbolic AI, and real-time predictive modeling, this repository provides a foundation for future developments in adaptive frame condensation, explainable AI, and autonomous decision-making systems. The **Frame-Based Monitoring** research project represents a versatile framework for further research and practical advancements in efficient data representation, symbolic processing, and predictive analytics in AI and autonomous systems.
+
+## Installation
+
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/your-repo/frame-based-monitoring.git
+   cd frame-based-monitoring
+   ```
+
+2. **Install Dependencies**
+   Make sure you have Python 3.7+ installed, then install required packages:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Dataset Preparation**
+   - Download the NuScenes dataset or another compatible dataset and place it in the designated `data` folder.
+   - Follow any specific instructions for formatting the data for use in the project.
 
 ## Folder Structure
 
