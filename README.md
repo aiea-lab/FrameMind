@@ -93,12 +93,12 @@ save(condensed_data, 'output_file_path')
 #Examples
 We are using the Boston Scene for the parsing process
 Parsed Frames:
-Frame(name="Frame1", slots={'position': [1.0, 2.0, 3.0], 'velocity': [0.5, 0.0, 1.0], ...})
-Frame(name="Frame2", slots={'position': [1.5, 2.5, 3.5], 'velocity': [0.6, 0.1, 0.9], ...})
+### Frame(name="Frame1", slots={'position': [1.0, 2.0, 3.0], 'velocity': [0.5, 0.0, 1.0], ...})
+### Frame(name="Frame2", slots={'position': [1.5, 2.5, 3.5], 'velocity': [0.6, 0.1, 0.9], ...})
 
 Symbolic Frames:
-SymbolicFrame(name="Frame1", data={'position_symbol': "Pos1", 'velocity_symbol': "Vel1", ...})
-SymbolicFrame(name="Frame2", data={'position_symbol': "Pos2", 'velocity_symbol': "Vel2", ...})
+### SymbolicFrame(name="Frame1", data={'position_symbol': "Pos1", 'velocity_symbol': "Vel1", ...})
+### SymbolicFrame(name="Frame2", data={'position_symbol': "Pos2", 'velocity_symbol': "Vel2", ...})
 
 Condensed Frame Data:
 {
