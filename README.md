@@ -11,7 +11,7 @@
 
 <!--- BADGES: END --->
 
-## Overview:
+## Overview
 The **Frame-Based Monitoring** project is a sophisticated toolkit designed for advanced parsing, condensation, and analysis of high-dimensional frame data, with a particular emphasis on static frame condensation. This research-driven framework addresses core challenges in data optimization, interpretability, and real-time decision-making, providing a modular approach to frame-based data processing. Its applications span autonomous systems, symbolic processing, and natural language processing (NLP), enabling foundational research into efficient data handling and symbolic AI.
 
 ## Research Objectives
