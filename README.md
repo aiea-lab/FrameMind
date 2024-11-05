@@ -19,10 +19,10 @@ The **Frame-Based Monitoring** project is a sophisticated toolkit designed for a
 ### Data Optimization via Frame Condensation
 The project introduces a **Static Frame Condensation** module to aggregate multiple frames into a singular, representative frame, reducing data redundancy while retaining essential scene dynamics. The condensation process leverages statistical aggregation (e.g., averaging positions and velocities) to synthesize a condensed representation that supports computational efficiency. This work aims to demonstrate that condensed frames can maintain fidelity to the original scene while significantly minimizing data volume, a key advancement for data-intensive applications.
 
-### Symbolic Parsing for Enhanced Interpretability: 
+### Symbolic Parsing for Enhanced Interpretability
 A symbolic interpretation layer, operationalized through a Symbolic Parser, converts raw numerical frame data into structured symbolic representations. This transformation allows data to be rendered in a human-readable format, facilitating interpretability and bridging the gap between machine-generated data and human-centered analysis. Symbolic parsing is particularly impactful in AI explainability, supporting applications where transparency and interpretability of data-driven insights are paramount.
 
-### Predictive Analysis through Trajectory Computation: 
+### Predictive Analysis through Trajectory Computation
 The project integrates a Trajectory Analysis component to extract object trajectories across frames, providing insights into object state evolution over time. By tracking the motion paths of objects within a scene, this module supports predictive analytics in applications such as autonomous driving, where accurate motion forecasting is critical. This work investigates how trajectory modeling can enhance both the predictive power and reliability of real-time decision systems.
 
 ## Contribution to the Field
