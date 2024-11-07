@@ -467,7 +467,7 @@ def process_and_condense_frames(dataroot: str, version: str = "v1.0-mini"):
     return all_scene_outputs, condensed_frames
 
 def main():
-    dataroot = '/Users/ananya/Desktop/frames/data/raw/nuscenes/v1.0-mini'  # Update this path
+    dataroot = '/Applications/FrameMind/data/raw/nuscenes/v1.0-mini'  # Update this path
     frame_manager = create_nuscenes_frames(dataroot)
 
     # Create the config
