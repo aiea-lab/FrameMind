@@ -5,6 +5,9 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Optional
 from nuscenes.nuscenes import NuScenes
 from scipy.spatial.transform import Rotation as R
+from parsers.nuscenes_database import NuScenesDatabase, Scene, Sample
+from parsers.nuscenes_parser_config import NuScenesDataParserConfig
+from parsers.scene_elements import Cameras, SceneBox
 
 # Custom JSON encoder to handle non-serializable objects
 class NumpyEncoder(json.JSONEncoder):

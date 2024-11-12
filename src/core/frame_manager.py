@@ -11,6 +11,7 @@ class FrameNotFoundError(Exception):
 class FrameManager:
     def __init__(self):
         self.frames: List[Frame] = []
+        self.trajectories = {}
 
     def create_frame(self, name: str, timestamp: datetime, status: Status, coordinates: Coordinate, elements=None) -> Frame:
         if elements is None:

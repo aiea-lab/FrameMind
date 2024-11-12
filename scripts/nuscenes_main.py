@@ -2,8 +2,9 @@ import sys
 from pathlib import Path
 import os
 import json
-# from logger import get_logger
 
+# from logger import get_logger
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 sys.path.append(str(Path(__file__).resolve().parent.parent / "src"))
 
 
@@ -22,7 +23,6 @@ sys.path.append('/Users/ananya/Desktop/frames/data/raw/nuscenes')
 from nuscenes import NuScenes
 from core.coordinate import Coordinate
 from core.frame_manager import FrameManager
-from core.frame import Frame
 from core.status import Status
 # from src.trajectory import Trajectory
 # from src.condensing import StaticCondenser
@@ -32,43 +32,18 @@ from typing import List, Dict, Optional
 import numpy as np
 from nuscenes.nuscenes import NuScenes
 from scipy.spatial.transform import Rotation as R
+from condensing.static_condenser import StaticCondenser
+from core.coordinate import Coordinate
+from parsers.numpy_encoder import NumpyEncoder
+# from parsers.nuscenes_parser_config import NuScenesDataParserConfig
+from parsers.scene_elements import Cameras, SceneBox
+from elements.cameras import Cameras
+from elements.scene_box import SceneBox
+from elements.camera_data import CameraData
+from elements.sample import Sample
+from core.scene import Scene
+from core.nuscenes_database import NuScenesDatabase
 
-
-# Custom JSON encoder to handle non-serializable objects
-class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()  
-        if isinstance(obj, np.float32) or isinstance(obj, np.float64):
-            return float(obj)  
-        if isinstance(obj, np.int32) or isinstance(obj, np.int64):
-            return int(obj)  
-        return super(NumpyEncoder, self).default(obj)
-
-@dataclass
-class NuScenesDataParserConfig:
-    data: Path
-    data_dir: Path
-    version: str = "v1.0-mini"
-    cameras: List[str] = field(default_factory=lambda: ["CAM_FRONT", "CAM_FRONT_RIGHT", "CAM_FRONT_LEFT", "CAM_BACK", "CAM_BACK_LEFT", "CAM_BACK_RIGHT"])
-    mask_dir: Optional[Path] = None
-    train_split_fraction: float = 0.9
-    verbose: bool = True
-
-
-class Cameras:
-    def __init__(self, poses: np.ndarray, intrinsics: np.ndarray, image_filenames: List[str]):
-        self.poses = poses
-        self.intrinsics = intrinsics
-        self.image_filenames = image_filenames
-
-class SceneBox:
-    def __init__(self, aabb: List[List[float]], near: float, far: float, radius: float, collider_type: str):
-        self.aabb = aabb
-        self.near = near
-        self.far = far
-        self.radius = radius
-        self.collider_type = collider_type
 
 @dataclass
 class DataparserOutputs:
@@ -77,123 +52,18 @@ class DataparserOutputs:
     scene_box: SceneBox
     metadata: Dict
 
-class CameraData:
-    def __init__(self, intrinsics: np.ndarray, extrinsics: np.ndarray, image_path: str):
-        self.intrinsics = intrinsics
-        self.extrinsics = extrinsics
-        self.image_path = image_path
-
-class Sample:
-    def __init__(self, token: str, timestamp: int, scene_token: str):
-        self.token = token
-        self.timestamp = timestamp
-        self.scene_token = scene_token
-        self.camera_data: Dict[str, CameraData] = {}
-        self.annotations: List[str] = []  # Add this line to store annotation tokens
-
-    def add_camera_data(self, camera_name: str, camera_data: CameraData):
-        self.camera_data[camera_name] = camera_data
-
-    def add_annotations(self, annotation_tokens: List[str]):
-        self.annotations = annotation_tokens
-
-
-class Scene:
-    def __init__(self, token: str, name: str):
-        self.token = token
-        self.name = name
-        self.samples: List[Sample] = []
-
-    def add_sample(self, sample: Sample):
-        self.samples.append(sample)
-
-
-class NuScenesDatabase:
-    def __init__(self, config: NuScenesDataParserConfig):  
-        self.config = config
-        self.nusc = NuScenes(version=config.version, dataroot=str(config.data_dir), verbose=config.verbose)
-        self.scenes: Dict[str, Scene] = {}
-
-    def load_data(self):
-        scene = self.nusc.get('scene', scene_token)
-        scene_obj = Scene(scene['token'], scene['name'])
-        self.scenes[scene['token']] = scene_obj
-
-        sample_token = scene['first_sample_token']
-        while sample_token:
-            sample = self.nusc.get('sample', sample_token)
-            sample_obj = Sample(sample['token'], sample['timestamp'], scene['token'])
-
-            for camera in self.config.cameras:
-                cam_data = self.nusc.get('sample_data', sample['data'][camera])
-                calib = self.nusc.get('calibrated_sensor', cam_data['calibrated_sensor_token'])
-                
-                intrinsics = np.array(calib['camera_intrinsic'])
-                extrinsics = np.eye(4)
-                
-                if 'rotation_matrix' in calib:
-                    extrinsics[:3, :3] = np.array(calib['rotation_matrix'])
-                elif 'rotation' in calib:
-                    quaternion = np.array(calib['rotation'])
-                    rotation_matrix = R.from_quat(quaternion).as_matrix()
-                    extrinsics[:3, :3] = rotation_matrix
-                else:
-                    print(f"Warning: 'rotation' or 'rotation_matrix' not found for camera {camera}. Using identity matrix.")
-
-                if 'translation' in calib:
-                    extrinsics[:3, 3] = np.array(calib['translation'])
-                else:
-                    print(f"Warning: 'translation' not found for camera {camera}. Using zeros.")
-
-                image_path = Path(self.nusc.get_sample_data_path(cam_data['token']))
-                camera_data = CameraData(intrinsics, extrinsics, str(image_path))
-                sample_obj.add_camera_data(camera, camera_data)
-
-            scene_obj.add_sample(sample_obj)
-            sample_token = sample['next']
-
-    def load_scene(self, scene_token: str):
-        # Load the scene using the provided scene_token
-        scene = self.nusc.get('scene', scene_token)
-        scene_obj = Scene(scene['token'], scene['name'])
-        self.scenes[scene['token']] = scene_obj
-
-        sample_token = scene['first_sample_token']
-        while sample_token:
-            sample = self.nusc.get('sample', sample_token)
-            sample_obj = Sample(sample['token'], sample['timestamp'], scene['token'])
-
-            # Store annotation tokens in the sample
-            sample_obj.add_annotations(sample['anns'])  # Add this line to store annotations
-
-            # Process cameras (this part of the code remains unchanged)
-            for camera in self.config.cameras:
-                cam_data = self.nusc.get('sample_data', sample['data'][camera])
-                calib = self.nusc.get('calibrated_sensor', cam_data['calibrated_sensor_token'])
-
-                intrinsics = np.array(calib['camera_intrinsic'])
-                extrinsics = np.eye(4)
-
-                if 'rotation_matrix' in calib:
-                    extrinsics[:3, :3] = np.array(calib['rotation_matrix'])
-                elif 'rotation' in calib:
-                    quaternion = np.array(calib['rotation'])
-                    rotation_matrix = R.from_quat(quaternion).as_matrix()
-                    extrinsics[:3, :3] = rotation_matrix
-                else:
-                    print(f"Warning: 'rotation' or 'rotation_matrix' not found for camera {camera}. Using identity matrix.")
-
-                if 'translation' in calib:
-                    extrinsics[:3, 3] = np.array(calib['translation'])
-                else:
-                    print(f"Warning: 'translation' not found for camera {camera}. Using zeros.")
-
-                image_path = Path(self.nusc.get_sample_data_path(cam_data['token']))
-                camera_data = CameraData(intrinsics, extrinsics, str(image_path))
-                sample_obj.add_camera_data(camera, camera_data)
-
-            scene_obj.add_sample(sample_obj)
-            sample_token = sample['next']
+@dataclass
+class NuScenesDataParserConfig:
+    data: Path
+    data_dir: Path
+    version: str = "v1.0-mini"
+    cameras: List[str] = field(default_factory=lambda: [
+        "CAM_FRONT", "CAM_FRONT_RIGHT", "CAM_FRONT_LEFT", 
+        "CAM_BACK", "CAM_BACK_LEFT", "CAM_BACK_RIGHT"
+    ])
+    mask_dir: Optional[Path] = None
+    train_split_fraction: float = 0.9
+    verbose: bool = True
 
 
 class NuScenesParser:
@@ -259,6 +129,7 @@ class NuScenesParser:
                 'velocity': self.database.nusc.box_velocity(ann_token),
                 'num_lidar_pts': ann['num_lidar_pts'],
                 'num_radar_pts': ann['num_radar_pts']
+                //description
             }
             annotations.append(annotation_details)
 
@@ -467,7 +338,10 @@ def process_and_condense_frames(dataroot: str, version: str = "v1.0-mini"):
     return all_scene_outputs, condensed_frames
 
 def main():
-    dataroot = '/Applications/FrameMind/data/raw/nuscenes/v1.0-mini'  # Update this path
+
+    dataroot = '/Applications/FrameMind/data/raw/nuscenes/v1.0-mini' # Update this path
+    version = "v1.0-mini" 
+
     frame_manager = create_nuscenes_frames(dataroot)
 
     # Create the config
@@ -484,8 +358,11 @@ def main():
     parser = NuScenesParser(config)  # Only config is passed now
     all_scene_outputs = parser.parse_all_scenes()
     # Process frames, update trajectories, and apply condensation
-    all_scene_outputs, condensed_frames = process_and_condense_frames(dataroot, version)
+    # all_scene_outputs, condensed_frames = process_and_condense_frames(dataroot, version)
 
+    # Retrieve frames from frame_manager
+    frame_manager = create_nuscenes_frames(dataroot, version)
+    frames = frame_manager.frames  # Assuming frame_manager.frames is a list of Frame objects
 
     distance_threshold = 5.0  # Example: 5 meters
     time_threshold = 2.0      # Example: 2 seconds  
@@ -522,6 +399,11 @@ def main():
     # Get the number of frames
     number_of_frames = frame_manager.get_number_of_frames()
     print(f"Number of frames: {number_of_frames}")
+
+    #Static condensation
+
+    #Condensed frames output
+
 
 if __name__ == "__main__":
     main()
