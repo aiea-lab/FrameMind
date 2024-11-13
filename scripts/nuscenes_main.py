@@ -129,7 +129,7 @@ class NuScenesParser:
                 'velocity': self.database.nusc.box_velocity(ann_token),
                 'num_lidar_pts': ann['num_lidar_pts'],
                 'num_radar_pts': ann['num_radar_pts']
-                //description
+                #description
             }
             annotations.append(annotation_details)
 
@@ -360,14 +360,14 @@ def main():
     # Process frames, update trajectories, and apply condensation
     # all_scene_outputs, condensed_frames = process_and_condense_frames(dataroot, version)
 
+    
     # Retrieve frames from frame_manager
     frame_manager = create_nuscenes_frames(dataroot, version)
     frames = frame_manager.frames  # Assuming frame_manager.frames is a list of Frame objects
 
+    # Combine similar frames
     distance_threshold = 5.0  # Example: 5 meters
     time_threshold = 2.0      # Example: 2 seconds  
-
-    # Combine similar frames
     frame_manager.combine_similar_frames(distance_threshold, time_threshold)
 
     #Write the parsed data to a JSON file
@@ -377,6 +377,21 @@ def main():
 
     print(f"Output has been written to {output_file_path}")
 
+     # Update trajectories after processing frames
+    frame_manager.update_trajectories()
+
+    # Retrieve and write trajectory data to JSON
+    trajectories = frame_manager.get_all_trajectories()
+    trajectory_output_file_path = "trajectory_output.json"
+    with open(trajectory_output_file_path, 'w') as outfile:
+        json.dump(trajectories, outfile, indent=4, default=str)
+    print(f"Trajectory output has been written to {trajectory_output_file_path}")
+
+    # Perform frame combination based on spatial and temporal thresholds
+    distance_threshold = 5.0  # Example: 5 meters
+    time_threshold = 2.0      # Example: 2 seconds  
+    frame_manager.combine_similar_frames(distance_threshold, time_threshold)
+    
     # Simulate frame communication for the current scene
     print("\nSimulating frame communication for one scene:")
     frame_manager.simulate_communication()
@@ -401,8 +416,12 @@ def main():
     print(f"Number of frames: {number_of_frames}")
 
     #Static condensation
-
-    #Condensed frames output
+    # Perform static condensation and output condensed data
+    condensed_frames = frame_manager.condense_frames_statistically()
+    condensed_output_file_path = "condensed_frames_output.json"
+    with open(condensed_output_file_path, 'w') as outfile:
+        json.dump(condensed_frames, outfile, indent=4, default=str)  # default=str for datetime serialization
+    print(f"Condensed frames output has been written to {condensed_output_file_path}")
 
 
 if __name__ == "__main__":

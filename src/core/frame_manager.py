@@ -172,3 +172,87 @@ class FrameManager:
             return self.trajectories[object_id].get_trajectory()
         else:
             raise ValueError(f"No trajectory found for object ID: {object_id}")
+
+    def condense_frames_statistically(self, distance_threshold=5.0, time_threshold=2.0):
+        """
+        Condense frames by aggregating information within specified spatial and temporal thresholds.
+        
+        Parameters:
+            distance_threshold (float): Maximum distance between frames for them to be considered similar.
+            time_threshold (float): Maximum time difference between frames for them to be considered similar.
+
+        Returns:
+            list: A list of condensed frame data suitable for JSON serialization.
+        """
+        condensed_output = []
+        visited = set()
+        
+        for i, frame in enumerate(self.frames):
+            if i in visited:
+                continue
+            
+            # Initialize the condensed representation
+            condensed_frame = {
+                "name": frame.name,
+                "timestamp": frame.timestamp,
+                "average_position": frame.coordinates,
+                "annotations": frame.annotations[:],
+                "frame_count": 1
+            }
+            
+            for j in range(i + 1, len(self.frames)):
+                other_frame = self.frames[j]
+                if j not in visited and self.are_frames_similar(frame, other_frame, distance_threshold, time_threshold):
+                    # Update condensed frame with data from other_frame
+                    condensed_frame["frame_count"] += 1
+                    condensed_frame["average_position"] = self._average_positions(
+                        condensed_frame["average_position"], other_frame.coordinates, condensed_frame["frame_count"]
+                    )
+                    condensed_frame["annotations"].extend(other_frame.annotations)
+                    visited.add(j)
+            
+            condensed_output.append(condensed_frame)
+            visited.add(i)
+    
+        return condensed_output
+
+    def _average_positions(self, position1, position2, count):
+        """Average two positions with cumulative count for dynamic updating."""
+        return Coordinate(
+            x=(position1.x * (count - 1) + position2.x) / count,
+            y=(position1.y * (count - 1) + position2.y) / count,
+            z=(position1.z * (count - 1) + position2.z) / count
+        )
+
+    def update_trajectories(self):
+        """Update the trajectories for each object across frames."""
+        for frame in self.frames:
+            timestamp = frame.timestamp.timestamp()  # Convert datetime to a Unix timestamp
+            for annotation in frame.annotations:
+                object_id = annotation.get("id")  # Object ID in annotation
+                location = annotation.get("location")  # Location in annotation
+
+                # Debug: Check if object_id and location exist
+                print(f"Processing frame {frame.name} - Object ID: {object_id}, Location: {location}")
+
+                if object_id and location:
+                    # Ensure trajectory exists for this object
+                    if object_id not in self.trajectories:
+                        self.trajectories[object_id] = Trajectory(object_id=object_id)
+
+                    # Update the trajectory with the current position and timestamp
+                    self.trajectories[object_id].add_position(
+                        (location.x, location.y, location.z), timestamp
+                    )
+
+    def get_all_trajectories(self):
+        """Retrieve all trajectories in a JSON-serializable format."""
+        all_trajectories = []
+        for object_id, trajectory in self.trajectories.items():
+            trajectory_data = {
+                "object_id": object_id,
+                "positions": trajectory.positions,
+                "timestamps": trajectory.timestamps,
+            }
+            all_trajectories.append(trajectory_data)
+        return all_trajectories
