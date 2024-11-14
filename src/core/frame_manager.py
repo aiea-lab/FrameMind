@@ -173,56 +173,128 @@ class FrameManager:
         else:
             raise ValueError(f"No trajectory found for object ID: {object_id}")
 
-    def condense_frames_statistically(self, distance_threshold=5.0, time_threshold=2.0):
+        def condense_frames_statistically(self, scene_id, scene_name, distance_threshold=5.0, time_threshold=2.0):
         """
-        Condense frames by aggregating information within specified spatial and temporal thresholds.
+        Condense frames by aggregating information within specified spatial and temporal thresholds and
+        generate output in the specified format.
         
         Parameters:
+            scene_id (str): Identifier for the scene.
+            scene_name (str): Descriptive name of the scene.
             distance_threshold (float): Maximum distance between frames for them to be considered similar.
             time_threshold (float): Maximum time difference between frames for them to be considered similar.
 
         Returns:
-            list: A list of condensed frame data suitable for JSON serialization.
+            dict: Condensed scene data suitable for JSON serialization.
         """
-        condensed_output = []
+        condensed_frames = []
         visited = set()
         
         for i, frame in enumerate(self.frames):
             if i in visited:
                 continue
             
-            # Initialize the condensed representation
+            # Initialize the condensed representation for a single frame
             condensed_frame = {
-                "name": frame.name,
-                "timestamp": frame.timestamp,
-                "average_position": frame.coordinates,
-                "annotations": frame.annotations[:],
+                "frame_id": frame.name,
+                "average_timestamp": frame.timestamp.isoformat(),
+                "average_position": [frame.coordinates.x, frame.coordinates.y, frame.coordinates.z],
+                "annotations": frame.annotations[:],  # Start with annotations from the current frame
                 "frame_count": 1
             }
             
             for j in range(i + 1, len(self.frames)):
                 other_frame = self.frames[j]
                 if j not in visited and self.are_frames_similar(frame, other_frame, distance_threshold, time_threshold):
-                    # Update condensed frame with data from other_frame
+                    # Update the condensed frame with data from other_frame
                     condensed_frame["frame_count"] += 1
                     condensed_frame["average_position"] = self._average_positions(
                         condensed_frame["average_position"], other_frame.coordinates, condensed_frame["frame_count"]
                     )
-                    condensed_frame["annotations"].extend(other_frame.annotations)
+                    condensed_frame["annotations"] = self._merge_annotations(
+                        condensed_frame["annotations"], other_frame.annotations
+                    )
                     visited.add(j)
             
-            condensed_output.append(condensed_frame)
+            condensed_frames.append(condensed_frame)
             visited.add(i)
-    
-        return condensed_output
+        
+        # Calculate scene-level metadata
+        timestamps = [frame["average_timestamp"] for frame in condensed_frames]
+        positions = [frame["average_position"] for frame in condensed_frames]
+        
+        timestamp_range = {
+            "start": min(timestamps),
+            "end": max(timestamps)
+        }
+        average_position = [
+            sum(pos[0] for pos in positions) / len(positions),
+            sum(pos[1] for pos in positions) / len(positions),
+            sum(pos[2] for pos in positions) / len(positions),
+        ]
+        number_of_frames_combined = sum(frame["frame_count"] for frame in condensed_frames)
+        
+        # Create the condensed scene output
+        scene_output = {
+            "scene_id": scene_id,
+            "scene_name": scene_name,
+            "timestamp_range": timestamp_range,
+            "average_position": average_position,
+            "number_of_frames_combined": number_of_frames_combined,
+            "condensed_frames": condensed_frames
+        }
+        
+        return scene_output
 
-    def _average_positions(self, position1, position2, count):
-        """Average two positions with cumulative count for dynamic updating."""
-        return Coordinate(
-            x=(position1.x * (count - 1) + position2.x) / count,
-            y=(position1.y * (count - 1) + position2.y) / count,
-            z=(position1.z * (count - 1) + position2.z) / count
-        )
+    def _merge_annotations(self, existing_annotations, new_annotations):
+        """
+        Merge annotations from two frames, avoiding duplicates and aggregating relevant properties.
+        
+        Parameters:
+            existing_annotations (list): List of annotations from the existing condensed frame.
+            new_annotations (list): List of annotations from the frame being merged.
+
+        Returns:
+            list: Merged list of annotations.
+        """
+        merged_annotations = {  # Use a dictionary to avoid duplicates
+            (ann["category"], tuple(ann["location"])): ann
+            for ann in existing_annotations
+        }
+        
+        for ann in new_annotations:
+            key = (ann["category"], tuple(ann["location"]))
+            if key in merged_annotations:
+                # Merge properties like velocity, size, etc., if needed
+                existing_ann = merged_annotations[key]
+                existing_ann["velocity"] = self._average_velocity(
+                    existing_ann.get("velocity", [0, 0, 0]),
+                    ann.get("velocity", [0, 0, 0])
+                )
+                # Add other property merges as necessary
+            else:
+                merged_annotations[key] = ann
+        
+        return list(merged_annotations.values())
+
+    def _average_positions(self, existing_position, new_position, count):
+        """
+        Compute the average position based on the new position and count.
+        
+        Parameters:
+            existing_position (list): Current average position [x, y, z].
+            new_position (Coordinate): New position to include in the average.
+            count (int): Number of positions included in the average so far.
+
+        Returns:
+            list: Updated average position [x, y, z].
+        """
+        return [
+            (existing_position[0] * (count - 1) + new_position.x) / count,
+            (existing_position[1] * (count - 1) + new_position.y) / count,
+            (existing_position[2] * (count - 1) + new_position.z) / count,
+        ]
+
 
     def update_trajectories(self):
         """Update the trajectories for each object across frames."""

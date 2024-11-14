@@ -1,0 +1,57 @@
+{
+    "scene_id": "scene_001",
+    "scene_metadata": {
+      "start_time": "2024-11-13T10:00:00",
+      "end_time": "2024-11-13T10:05:00",
+      "location": "Boston",
+      "weather": "Clear"
+    },
+    "condensed_frames": [
+      {
+        "frame_id": "frame_001",
+        "timestamp": "2024-11-13T10:00:01.000",
+        "scene_context": {
+          "traffic_density": "low",
+          "road_conditions": "dry"
+        },
+        "condensed_objects": [
+          {
+            "object_id": "car_001",
+            "object_type": "vehicle",
+            "state_transitions": ["moving", "stopped"],
+            "position": {"x": 10.0, "y": 20.0, "z": 0.0},
+            "interactions": [
+              {"object_id": "pedestrian_001", "distance": 5.0, "relative_velocity": -2.0}
+            ]
+          }
+        ],
+        "events": [
+          {
+            "event_id": "event_001",
+            "type": "crossing_interaction",
+            "involved_objects": ["car_001", "pedestrian_001"]
+          }
+        ],
+        "rules": [
+          {
+            "rule_id": "rule_001",
+            "description": "Vehicle must stop if pedestrian is within 5 meters.",
+            "applicable_objects": ["car_001", "pedestrian_001"],
+            "condition": {"distance": "<= 5"}
+          }
+        ],
+        "explanations": [
+          {
+            "action": "stopped",
+            "object_id": "car_001",
+            "reason": "Detected pedestrian within 5m.",
+            "evidence": {
+              "sensor_data": {"lidar": true, "camera": true},
+              "rules_triggered": ["rule_001"]
+            }
+          }
+        ]
+      }
+    ]
+  }
+  

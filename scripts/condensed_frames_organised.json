@@ -1,0 +1,44 @@
+{
+    "scene_id": "ffgfhjhjjhjkkjkllklkjhhg",
+    "scene_name": "--bhgfdfdf",
+    "timestamp_range": {
+        "start": "2018-07-23T20:28:47.647951",
+        "end": "2018-07-23T20:35:00.000000"
+    },
+    "average_position": [411.3039349319818, 1180.8903791765097, 0.0],
+    "number_of_frames_combined": 15,
+    "condensed_frames": [
+        {   
+            {
+
+            }
+
+                #TODO: To check the id through diff samples
+                "object_id":"ananya", 
+                "object_category":"vehicle.car",
+                "velocity_list":[[1,2,3],[3,4,5],[5,6,7]],
+                "rotation_list":  [[1,2,3],[3,4,5],[5,6,7]],
+                "num_lidar_pts_list": [27,2,3],
+                "num_radar_pts_list": [2,4,5],
+                "index_of_occured_samples":[5,6,7,8]
+
+                #TODO: To check if there are any other attributes",
+                ______________________________________________
+
+                "Average_Speed":[23.23,4.33,34.343],
+                #TODO:To figure this out "Deviation_of_rotation":[],
+                #TODO: What's the size? 
+                ______________________________________________
+
+                #TODO: How is this a trajectory? "Trajectory":[('Turn_left',(1,3)),("Turn_right",(4,6)),("Straight",())]
+
+                #Figure out  the "defs" & "methodologies-> Li"
+        },
+        {
+            
+        }
+    ]
+}
+
+#TODO: condense the frames for scene-level context and, within each frame, also create condensed outputs for individual objects
+
