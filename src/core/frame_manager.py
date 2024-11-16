@@ -173,11 +173,11 @@ class FrameManager:
         else:
             raise ValueError(f"No trajectory found for object ID: {object_id}")
 
-        def condense_frames_statistically(self, scene_id, scene_name, distance_threshold=5.0, time_threshold=2.0):
+    def condense_frames_statistically(self, scene_id, scene_name, distance_threshold=5.0, time_threshold=2.0):
         """
-        Condense frames by aggregating information within specified spatial and temporal thresholds and
-        generate output in the specified format.
-        
+        Condense frames by aggregating information within specified spatial and temporal thresholds 
+        and generate output in the specified format.
+
         Parameters:
             scene_id (str): Identifier for the scene.
             scene_name (str): Descriptive name of the scene.
@@ -193,32 +193,48 @@ class FrameManager:
         for i, frame in enumerate(self.frames):
             if i in visited:
                 continue
-            
+
             # Initialize the condensed representation for a single frame
             condensed_frame = {
                 "frame_id": frame.name,
                 "average_timestamp": frame.timestamp.isoformat(),
-                "average_position": [frame.coordinates.x, frame.coordinates.y, frame.coordinates.z],
-                "annotations": frame.annotations[:],  # Start with annotations from the current frame
+                "average_position": [frame.coordinates.x, frame.coordinates.y, frame.coordinates.z],  # Convert to list
+                "annotations": [],
                 "frame_count": 1
             }
             
+            # Process annotations for the current frame
+            for annotation in frame.annotations:
+                condensed_annotation = {
+                    "category": annotation["category"],
+                    "average_location": [annotation["location"].x, annotation["location"].y, annotation["location"].z],  # Convert to list
+                    "size": annotation["size"],
+                    "rotation": annotation["rotation"],
+                    "velocity": annotation["velocity"],
+                    "num_lidar_pts": annotation["num_lidar_pts"],
+                    "num_radar_pts": annotation["num_radar_pts"]
+                }
+                condensed_frame["annotations"].append(condensed_annotation)
+
+            # Combine similar frames
             for j in range(i + 1, len(self.frames)):
                 other_frame = self.frames[j]
                 if j not in visited and self.are_frames_similar(frame, other_frame, distance_threshold, time_threshold):
                     # Update the condensed frame with data from other_frame
                     condensed_frame["frame_count"] += 1
                     condensed_frame["average_position"] = self._average_positions(
-                        condensed_frame["average_position"], other_frame.coordinates, condensed_frame["frame_count"]
+                        condensed_frame["average_position"],
+                        [other_frame.coordinates.x, other_frame.coordinates.y, other_frame.coordinates.z],
+                        condensed_frame["frame_count"]
                     )
                     condensed_frame["annotations"] = self._merge_annotations(
                         condensed_frame["annotations"], other_frame.annotations
                     )
                     visited.add(j)
-            
+
             condensed_frames.append(condensed_frame)
             visited.add(i)
-        
+
         # Calculate scene-level metadata
         timestamps = [frame["average_timestamp"] for frame in condensed_frames]
         positions = [frame["average_position"] for frame in condensed_frames]
@@ -245,6 +261,7 @@ class FrameManager:
         }
         
         return scene_output
+
 
     def _merge_annotations(self, existing_annotations, new_annotations):
         """

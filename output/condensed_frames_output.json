@@ -1,0 +1,43 @@
+[
+    {
+        "scene_id": "cc8c0bf57f984915a77078b10eb33198",
+        "scene_name": "scene-0061",
+        "timestamp_range": {
+            "start": "2018-07-23T20:28:47.647951",
+            "end": "2018-11-21T03:50:05.947122"
+        },
+        "average_position": [
+            1137.885062604628,
+            1607.7762666790388,
+            0.0
+        ],
+        "number_of_frames_combined": 196,
+        "condensed_frames": [
+            {
+                "frame_id": "ca9a282c9e77460f8360f564131a8af5",
+                "average_timestamp": "2018-07-23T20:28:47.647951",
+                "average_position": [
+                    411.3039349319818,
+                    1180.8903791765097,
+                    0.0
+                ],
+                "annotations": [
+                    {
+                        "category": "movable_object.barrier",
+                        "average_location": [
+                            399.773,
+                            1169.799,
+                            0.536
+                        ],
+                        "size": [
+                            1.99,
+                            0.651,
+                            1.107
+                        ],
+                        "rotation": [
+                            -0.9837693673542263,
+                            0.0,
+                            0.0,
+                            0.1794375430490104
+                        ],
+                        "velocity": 

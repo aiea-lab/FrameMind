@@ -44,7 +44,31 @@ from elements.sample import Sample
 from core.scene import Scene
 from core.nuscenes_database import NuScenesDatabase
 
-
+class CustomJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        elif isinstance(obj, Coordinate):
+            return [obj.x, obj.y, obj.z]
+        elif isinstance(obj, np.generic):
+            return obj.item()  # Handle numpy types
+        elif hasattr(obj, "__dict__"):
+            return obj.__dict__  # Serialize custom objects with __dict__
+        return super().default(obj)
+    
+    def find_non_serializable(data):
+        """
+        Recursively traverse the data structure to find non-serializable objects.
+        """
+        if isinstance(data, dict):
+            for key, value in data.items():
+                find_non_serializable(value)
+        elif isinstance(data, list):
+            for item in data:
+                find_non_serializable(item)
+        elif not isinstance(data, (str, int, float, bool, type(None), list, dict)):
+            print(f"Non-serializable object found: {type(data)} -> {data}")
+    
 @dataclass
 class DataparserOutputs:
     image_filenames: List[str]
@@ -241,6 +265,187 @@ def create_nuscenes_frames(dataroot: str, version: str = 'v1.0-mini'):
 
     return frame_manager
 
+
+def create_nuscenes_frame_for_scene(nusc: NuScenes, frame_manager: FrameManager, scene_token: str):
+    """
+    Create NuScenes frames for a single scene.
+    Args:
+        nusc (NuScenes): NuScenes dataset object.
+        frame_manager (FrameManager): FrameManager to store frames.
+        scene_token (str): Token of the scene to process.
+    Returns:
+        list: List of created frames for the scene.
+    """
+    # Retrieve scene metadata
+    scene = nusc.get('scene', scene_token)
+    scene_name = scene['name']
+    print(f"Processing scene: {scene_name}")
+
+    # Initialize variables
+    sample_token = scene['first_sample_token']
+    prev_frame = None
+    frames = []
+
+    # Process all samples in the scene
+    while sample_token:
+        sample = nusc.get('sample', sample_token)
+        
+        # Get ego pose data
+        lidar_data = nusc.get('sample_data', sample['data']['LIDAR_TOP'])
+        ego_pose = nusc.get('ego_pose', lidar_data['ego_pose_token'])
+        ego_coordinates = Coordinate(
+            ego_pose['translation'][0],
+            ego_pose['translation'][1],
+            ego_pose['translation'][2]
+        )
+        timestamp = datetime.fromtimestamp(sample['timestamp'] / 1e6)
+
+        # Create frame
+        frame = frame_manager.create_frame(
+            name=sample['token'],
+            timestamp=timestamp,
+            status=Status.ACTIVE,
+            coordinates=ego_coordinates,
+            elements=[]
+        )
+
+        # Add sensor data paths to the frame
+        lidar_path = nusc.get_sample_data_path(sample['data']['LIDAR_TOP'])
+        frame.add_slot('lidar_path', lidar_path)
+
+        for cam_name, cam_token in sample['data'].items():
+            if 'CAM' in cam_name:  # Filter for camera data
+                cam_path = nusc.get_sample_data_path(cam_token)
+                frame.add_slot(f'{cam_name.lower()}_path', cam_path)
+
+        # Add annotations to the frame
+        for ann_token in sample['anns']:
+            annotation = nusc.get('sample_annotation', ann_token)
+            frame.add_slot(f'annotation_{ann_token}', {
+                'category': annotation['category_name'],
+                'location': Coordinate(
+                    annotation['translation'][0],
+                    annotation['translation'][1],
+                    annotation['translation'][2]
+                ),
+                'size': annotation['size'],
+                'rotation': annotation['rotation'],
+                'velocity': nusc.box_velocity(ann_token),
+                'num_lidar_pts': annotation['num_lidar_pts'],
+                'num_radar_pts': annotation['num_radar_pts']
+            })
+
+        # Add neighbors (link frames sequentially)
+        if prev_frame:
+            frame_manager.add_neighbors(prev_frame.name, frame.name)
+            print(f"Added neighbor: {prev_frame.name} -> {frame.name}")
+
+        # Store the created frame
+        frames.append(frame)
+
+        # Update the previous frame and move to the next sample
+        prev_frame = frame
+        sample_token = sample['next']
+
+    print(f"Completed processing scene: {scene_name}")
+    return frames
+
+def process_one_scene(nusc, scene_token):
+    """Process one scene into sample, scene, and object frames."""
+    # Retrieve scene metadata
+    scene = nusc.get('scene', scene_token)
+    scene_name = scene['name']
+    print(f"Processing scene: {scene_name}")
+    sample_token = scene['first_sample_token']
+    
+    # Retrieve start and end timestamps from samples
+    start_sample = nusc.get('sample', scene['first_sample_token'])
+    end_sample = nusc.get('sample', scene['last_sample_token'])
+    start_time = start_sample['timestamp']
+    end_time = end_sample['timestamp']
+    
+    # Convert timestamps to ISO format
+    start_time_iso = datetime.fromtimestamp(start_time / 1e6).isoformat()
+    end_time_iso = datetime.fromtimestamp(end_time / 1e6).isoformat()
+
+    # Containers for outputs
+    sample_frames = []
+    object_annotations = {}
+
+    # Process all samples in the scene
+    while sample_token:
+        sample = nusc.get('sample', sample_token)
+        lidar_data = nusc.get('sample_data', sample['data']['LIDAR_TOP'])
+        ego_pose = nusc.get('ego_pose', lidar_data['ego_pose_token'])
+        
+        # Create Sample Frame
+        sample_frame = {
+            "sample_id": sample['token'],
+            "timestamp": datetime.fromtimestamp(sample['timestamp'] / 1e6).isoformat(),
+            "ego_vehicle": {
+                "location": ego_pose['translation'],
+                "orientation": ego_pose['rotation']
+            },
+            "sensor_data": {
+                "lidar_path": nusc.get_sample_data_path(sample['data']['LIDAR_TOP']),
+                "camera_paths": {
+                    cam: nusc.get_sample_data_path(sample['data'][cam])
+                    for cam in sample['data'] if "CAM" in cam
+                }
+            },
+            "annotations": []
+        }
+        
+        # Process Annotations
+        for ann_token in sample['anns']:
+            annotation = nusc.get('sample_annotation', ann_token)
+            obj_id = annotation['instance_token']
+            obj_data = {
+                "object_id": obj_id,
+                "category": annotation['category_name'],
+                "location": annotation['translation'],
+                "size": annotation['size'],
+                "rotation": annotation['rotation']
+            }
+            sample_frame['annotations'].append(obj_data)
+            
+            # Collect Object Data for Aggregation
+            if obj_id not in object_annotations:
+                object_annotations[obj_id] = {
+                    "object_id": obj_id,
+                    "category": annotation['category_name'],
+                    "trajectory": []
+                }
+            object_annotations[obj_id]["trajectory"].append({
+                "timestamp": sample_frame['timestamp'],
+                "location": annotation['translation']
+            })
+        
+        sample_frames.append(sample_frame)
+        sample_token = sample['next']
+    
+    # Create Scene Frame
+    scene_frame = {
+        "scene_id": scene['token'],
+        "scene_name": scene['name'],
+        "duration": {
+            "start": start_time_iso,
+            "end": end_time_iso
+        },
+        "samples": sample_frames
+    }
+    
+    # Create Object Frames
+    object_frames = list(object_annotations.values())
+    
+    # Return Results
+    return {
+        "scene_frame": scene_frame,
+        "sample_frames": sample_frames,
+        "object_frames": object_frames
+    }
+
+
 def process_scene(nusc: NuScenes, config: NuScenesDataParserConfig, frame_manager: FrameManager, scene_token: str):
     """Process one scene and create frames from samples"""
     scene = nusc.get('scene', scene_token)
@@ -342,17 +547,45 @@ def main():
     dataroot = '/Applications/FrameMind/data/raw/nuscenes/v1.0-mini' # Update this path
     version = "v1.0-mini" 
 
+    #Create the frames
     frame_manager = create_nuscenes_frames(dataroot)
 
-    # Create the config
+     # Create the config
     config = NuScenesDataParserConfig(
         data=Path(dataroot),
         data_dir=Path(dataroot),
         version="v1.0-mini"
     )
 
-    # Initialize NuScenes to get a scene token
-    nusc = NuScenes(version=config.version, dataroot=str(config.data_dir), verbose=config.verbose)
+    #Initialize NuScenes to get a scene token (NUSCENE_API)
+    nusc = NuScenes(version=config.version, dataroot=str(config.data_dir))
+
+    # Step 2: Select a Scene
+    # Example: Select the first scene in the dataset
+    scene_token = nusc.scene[0]['token']
+    print(f"Processing scene with token: {scene_token}")
+
+    # Step 3: Process the Selected Scene
+    results = process_one_scene(nusc, scene_token)
+
+    # Step 4: Handle Outputs
+    scene_frame = results['scene_frame']
+    sample_frames = results['sample_frames']
+    object_frames = results['object_frames']
+
+    # Save Outputs to JSON Files
+    with open('scene_frame.json', 'w') as scene_file:
+        json.dump(scene_frame, scene_file, indent=4)
+    print("Scene frame saved to scene_frame.json")
+
+    with open('sample_frames.json', 'w') as sample_file:
+        json.dump(sample_frames, sample_file, indent=4)
+    print("Sample frames saved to sample_frames.json")
+
+    with open('object_frames.json', 'w') as object_file:
+        json.dump(object_frames, object_file, indent=4)
+    print("Object frames saved to object_frames.json")
+   
 
     # Create and use the parser
     parser = NuScenesParser(config)  # Only config is passed now
@@ -396,6 +629,35 @@ def main():
     print("\nSimulating frame communication for one scene:")
     frame_manager.simulate_communication()
 
+    # Condense frames for each scene
+    condensed_scenes = []
+    for scene in nusc.scene:
+        scene_id = scene['token']
+        scene_name = scene['name']
+
+        print(f"Processing condensation for scene: {scene_name}")
+        try:
+            # Call the condensation method
+            condensed_scene = frame_manager.condense_frames_statistically(
+                scene_id=scene_id,
+                scene_name=scene_name,
+                distance_threshold=5.0,  # Adjust thresholds if needed
+                time_threshold=2.0
+            )
+            condensed_scenes.append(condensed_scene)
+            print(f"Successfully condensed frames for scene: {scene_name}")
+        except Exception as e:
+            print(f"Error condensing frames for scene {scene_name}: {e}")
+
+    # Write the condensed scene data to a JSON file
+    condensed_output_file_path = "condensed_frames_output.json"
+    with open(condensed_output_file_path, 'w') as outfile:
+        json.dump(condensed_scenes, outfile, indent=4)
+    print(f"Condensed frames data has been written to {condensed_output_file_path}")
+
+    # Optionally, print the JSON to the console
+    print(json.dumps(condensed_scenes, indent=4, cls=CustomJSONEncoder))
+
     # Output the results of the communication simulation
     print("\nFrames and their shared info after communication:")
     for frame in frame_manager.frames:
@@ -417,12 +679,8 @@ def main():
 
     #Static condensation
     # Perform static condensation and output condensed data
-    condensed_frames = frame_manager.condense_frames_statistically()
-    condensed_output_file_path = "condensed_frames_output.json"
-    with open(condensed_output_file_path, 'w') as outfile:
-        json.dump(condensed_frames, outfile, indent=4, default=str)  # default=str for datetime serialization
-    print(f"Condensed frames output has been written to {condensed_output_file_path}")
-
+    # condensed_frames = frame_manager.condense_frames_statistically()
+    
 
 if __name__ == "__main__":
     main()

@@ -1,17 +1,1 @@
-[
-    {
-        "object_id": "ca9a282c9e77460f8360f564131a8af5",
-        "trajectory": [
-            {"timestamp": "2024-11-12T10:00:00", "position": [12.3, 45.6, 7.8]},
-            {"timestamp": "2024-11-12T10:01:00", "position": [12.5, 45.7, 7.9]},
-            {"timestamp": "2024-11-12T10:02:00", "position": [12.7, 45.9, 8.0]}
-        ]
-    },
-    {
-        "object_id": "356d81f38dd9473ba590f39e266f54e5",
-        "trajectory": [
-            {"timestamp": "2024-11-12T10:00:00", "position": [10.0, 40.0, 5.0]},
-            {"timestamp": "2024-11-12T10:01:00", "position": [10.5, 40.5, 5.1]}
-        ]
-    }
-]
+[]
