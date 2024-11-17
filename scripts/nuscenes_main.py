@@ -44,6 +44,15 @@ from elements.sample import Sample
 from core.scene import Scene
 from core.nuscenes_database import NuScenesDatabase
 
+class NumpyEncoder(json.JSONEncoder):
+    """Custom encoder for NumPy data types."""
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()  # Convert ndarray to list
+        if isinstance(obj, (np.integer, np.floating)):
+            return obj.item()  # Convert NumPy scalars to native Python types
+        return super().default(obj)
+
 class CustomJSONEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, datetime):
@@ -56,18 +65,18 @@ class CustomJSONEncoder(json.JSONEncoder):
             return obj.__dict__  # Serialize custom objects with __dict__
         return super().default(obj)
     
-    def find_non_serializable(data):
-        """
-        Recursively traverse the data structure to find non-serializable objects.
-        """
-        if isinstance(data, dict):
-            for key, value in data.items():
-                find_non_serializable(value)
-        elif isinstance(data, list):
-            for item in data:
-                find_non_serializable(item)
-        elif not isinstance(data, (str, int, float, bool, type(None), list, dict)):
-            print(f"Non-serializable object found: {type(data)} -> {data}")
+def find_non_serializable(data):
+    """
+    Recursively traverse the data structure to find non-serializable objects.
+    """
+    if isinstance(data, dict):
+        for key, value in data.items():
+            find_non_serializable(value)
+    elif isinstance(data, list):
+        for item in data:
+            find_non_serializable(item)
+    elif not isinstance(data, (str, int, float, bool, type(None), list, dict)):
+        print(f"Non-serializable object found: {type(data)} -> {data}")
     
 @dataclass
 class DataparserOutputs:
@@ -403,9 +412,9 @@ def process_one_scene(nusc, scene_token):
             obj_data = {
                 "object_id": obj_id,
                 "category": annotation['category_name'],
-                "location": annotation['translation'],
-                "size": annotation['size'],
-                "rotation": annotation['rotation']
+                "location": annotation['translation'].tolist() if isinstance(annotation['translation'], np.ndarray) else annotation['translation'],
+                "size": annotation['size'].tolist() if isinstance(annotation['size'], np.ndarray) else annotation['size'],
+                "rotation": annotation['rotation'].tolist() if isinstance(annotation['rotation'], np.ndarray) else annotation['rotation']
             }
             sample_frame['annotations'].append(obj_data)
             
@@ -414,12 +423,42 @@ def process_one_scene(nusc, scene_token):
                 object_annotations[obj_id] = {
                     "object_id": obj_id,
                     "category": annotation['category_name'],
-                    "trajectory": []
+                    "size": annotation['size'].tolist() if isinstance(annotation['size'], np.ndarray) else annotation['size'],
+                    "rotation": annotation['rotation'].tolist() if isinstance(annotation['rotation'], np.ndarray) else annotation['rotation'],
+                    "trajectory": [],
+                    "motion_metadata": [],
+                    "num_lidar_points": 0,
+                    "num_radar_points": 0,
+                    "relationships": {
+                        "ego_vehicle_distance": None,
+                        "neighboring_objects": []
+                    }
                 }
+            
+            # Update Trajectory and Motion Metadata
             object_annotations[obj_id]["trajectory"].append({
                 "timestamp": sample_frame['timestamp'],
-                "location": annotation['translation']
+                "location": annotation['translation'].tolist() if isinstance(annotation['translation'], np.ndarray) else annotation['translation']
             })
+            object_annotations[obj_id]["motion_metadata"].append({
+                "timestamp": sample_frame['timestamp'],
+                "location": annotation['translation'].tolist() if isinstance(annotation['translation'], np.ndarray) else annotation['translation'],
+                "rotation": annotation['rotation'].tolist() if isinstance(annotation['rotation'], np.ndarray) else annotation['rotation'],
+                "velocity": nusc.box_velocity(ann_token).tolist() if isinstance(nusc.box_velocity(ann_token), np.ndarray) else nusc.box_velocity(ann_token),
+                "num_lidar_points": annotation['num_lidar_pts'],
+                "num_radar_points": annotation['num_radar_pts'],
+                "sensor_data": {
+                    "lidar_path": nusc.get_sample_data_path(sample['data']['LIDAR_TOP']),
+                    "camera_paths": {
+                        cam: nusc.get_sample_data_path(sample['data'][cam])
+                        for cam in sample['data'] if "CAM" in cam
+                    }
+                }
+            })
+            
+            # Update Aggregated Fields
+            object_annotations[obj_id]["num_lidar_points"] += annotation['num_lidar_pts']
+            object_annotations[obj_id]["num_radar_points"] += annotation['num_radar_pts']
         
         sample_frames.append(sample_frame)
         sample_token = sample['next']
@@ -436,7 +475,16 @@ def process_one_scene(nusc, scene_token):
     }
     
     # Create Object Frames
-    object_frames = list(object_annotations.values())
+    object_frames = []
+    for obj_id, obj_data in object_annotations.items():
+        # Calculate ego vehicle distance (example computation)
+        ego_vehicle_loc = sample_frames[0]["ego_vehicle"]["location"]
+        obj_loc = obj_data["trajectory"][-1]["location"]
+        obj_data["relationships"]["ego_vehicle_distance"] = (
+            ((ego_vehicle_loc[0] - obj_loc[0]) ** 2 +
+             (ego_vehicle_loc[1] - obj_loc[1]) ** 2) ** 0.5
+        )
+        object_frames.append(obj_data)
     
     # Return Results
     return {
@@ -444,7 +492,6 @@ def process_one_scene(nusc, scene_token):
         "sample_frames": sample_frames,
         "object_frames": object_frames
     }
-
 
 def process_scene(nusc: NuScenes, config: NuScenesDataParserConfig, frame_manager: FrameManager, scene_token: str):
     """Process one scene and create frames from samples"""
@@ -614,72 +661,72 @@ def main():
     frame_manager.update_trajectories()
 
     # Retrieve and write trajectory data to JSON
-    trajectories = frame_manager.get_all_trajectories()
-    trajectory_output_file_path = "trajectory_output.json"
-    with open(trajectory_output_file_path, 'w') as outfile:
-        json.dump(trajectories, outfile, indent=4, default=str)
-    print(f"Trajectory output has been written to {trajectory_output_file_path}")
+    # trajectories = frame_manager.get_all_trajectories()
+    # trajectory_output_file_path = "trajectory_output.json"
+    # with open(trajectory_output_file_path, 'w') as outfile:
+    #     json.dump(trajectories, outfile, indent=4, default=str)
+    # print(f"Trajectory output has been written to {trajectory_output_file_path}")
 
-    # Perform frame combination based on spatial and temporal thresholds
-    distance_threshold = 5.0  # Example: 5 meters
-    time_threshold = 2.0      # Example: 2 seconds  
-    frame_manager.combine_similar_frames(distance_threshold, time_threshold)
+    # # Perform frame combination based on spatial and temporal thresholds
+    # distance_threshold = 5.0  # Example: 5 meters
+    # time_threshold = 2.0      # Example: 2 seconds  
+    # frame_manager.combine_similar_frames(distance_threshold, time_threshold)
     
-    # Simulate frame communication for the current scene
-    print("\nSimulating frame communication for one scene:")
-    frame_manager.simulate_communication()
+    # # Simulate frame communication for the current scene
+    # print("\nSimulating frame communication for one scene:")
+    # frame_manager.simulate_communication()
 
-    # Condense frames for each scene
-    condensed_scenes = []
-    for scene in nusc.scene:
-        scene_id = scene['token']
-        scene_name = scene['name']
+    # # Condense frames for each scene
+    # condensed_scenes = []
+    # for scene in nusc.scene:
+    #     scene_id = scene['token']
+    #     scene_name = scene['name']
 
-        print(f"Processing condensation for scene: {scene_name}")
-        try:
-            # Call the condensation method
-            condensed_scene = frame_manager.condense_frames_statistically(
-                scene_id=scene_id,
-                scene_name=scene_name,
-                distance_threshold=5.0,  # Adjust thresholds if needed
-                time_threshold=2.0
-            )
-            condensed_scenes.append(condensed_scene)
-            print(f"Successfully condensed frames for scene: {scene_name}")
-        except Exception as e:
-            print(f"Error condensing frames for scene {scene_name}: {e}")
+    #     print(f"Processing condensation for scene: {scene_name}")
+    #     try:
+    #         # Call the condensation method
+    #         condensed_scene = frame_manager.condense_frames_statistically(
+    #             scene_id=scene_id,
+    #             scene_name=scene_name,
+    #             distance_threshold=5.0,  # Adjust thresholds if needed
+    #             time_threshold=2.0
+    #         )
+    #         condensed_scenes.append(condensed_scene)
+    #         print(f"Successfully condensed frames for scene: {scene_name}")
+    #     except Exception as e:
+    #         print(f"Error condensing frames for scene {scene_name}: {e}")
 
-    # Write the condensed scene data to a JSON file
-    condensed_output_file_path = "condensed_frames_output.json"
-    with open(condensed_output_file_path, 'w') as outfile:
-        json.dump(condensed_scenes, outfile, indent=4)
-    print(f"Condensed frames data has been written to {condensed_output_file_path}")
+    # # Write the condensed scene data to a JSON file
+    # condensed_output_file_path = "condensed_frames_output.json"
+    # with open(condensed_output_file_path, 'w') as outfile:
+    #     json.dump(condensed_scenes, outfile, indent=4)
+    # print(f"Condensed frames data has been written to {condensed_output_file_path}")
 
-    # Optionally, print the JSON to the console
-    print(json.dumps(condensed_scenes, indent=4, cls=CustomJSONEncoder))
+    # # Optionally, print the JSON to the console
+    # print(json.dumps(condensed_scenes, indent=4, cls=CustomJSONEncoder))
 
-    # Output the results of the communication simulation
-    print("\nFrames and their shared info after communication:")
-    for frame in frame_manager.frames:
-        print(f"Frame {frame.name}: Shared info = {frame.shared_info}")
+    # # Output the results of the communication simulation
+    # print("\nFrames and their shared info after communication:")
+    # for frame in frame_manager.frames:
+    #     print(f"Frame {frame.name}: Shared info = {frame.shared_info}")
 
-    # Print outputs for each scene and sample
-    for scene_output in all_scene_outputs:
-        print(f"Scene: {scene_output['scene_name']}")
-        for sample in scene_output['samples']:
-            print(f"  Sample timestamp: {sample['timestamp']}")
-            # print(f"  Number of images: {len(sample['image_filenames'])}")
-            # print(f"  Camera poses shape: {sample['camera_poses'].shape}")
-            # print(f"  Camera intrinsics shape: {sample['camera_intrinsics'].shape}")
-            # print(f"  Scene box AABB: {sample['scene_box']['aabb']}")
+    # # Print outputs for each scene and sample
+    # for scene_output in all_scene_outputs:
+    #     print(f"Scene: {scene_output['scene_name']}")
+    #     for sample in scene_output['samples']:
+    #         print(f"  Sample timestamp: {sample['timestamp']}")
+    #         # print(f"  Number of images: {len(sample['image_filenames'])}")
+    #         # print(f"  Camera poses shape: {sample['camera_poses'].shape}")
+    #         # print(f"  Camera intrinsics shape: {sample['camera_intrinsics'].shape}")
+    #         # print(f"  Scene box AABB: {sample['scene_box']['aabb']}")
 
-    # Get the number of frames
-    number_of_frames = frame_manager.get_number_of_frames()
-    print(f"Number of frames: {number_of_frames}")
+    # # Get the number of frames
+    # number_of_frames = frame_manager.get_number_of_frames()
+    # print(f"Number of frames: {number_of_frames}")
 
-    #Static condensation
-    # Perform static condensation and output condensed data
-    # condensed_frames = frame_manager.condense_frames_statistically()
+    # #Static condensation
+    # # Perform static condensation and output condensed data
+    # # condensed_frames = frame_manager.condense_frames_statistically()
     
 
 if __name__ == "__main__":
