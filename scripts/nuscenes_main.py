@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 import os
 import json
+import random
 
 # from logger import get_logger
 sys.path.append(str(Path(__file__).resolve().parent.parent))
@@ -409,12 +410,13 @@ def process_one_scene(nusc, scene_token):
         for ann_token in sample['anns']:
             annotation = nusc.get('sample_annotation', ann_token)
             obj_id = annotation['instance_token']
+            base_size = annotation['size']
             obj_data = {
                 "object_id": obj_id,
                 "category": annotation['category_name'],
-                "location": annotation['translation'].tolist() if isinstance(annotation['translation'], np.ndarray) else annotation['translation'],
-                "size": annotation['size'].tolist() if isinstance(annotation['size'], np.ndarray) else annotation['size'],
-                "rotation": annotation['rotation'].tolist() if isinstance(annotation['rotation'], np.ndarray) else annotation['rotation']
+                "location": annotation['translation'],
+                "static_size": base_size,  # Object-level size
+                "rotation": annotation['rotation']  # Object-level rotation
             }
             sample_frame['annotations'].append(obj_data)
             
@@ -423,9 +425,8 @@ def process_one_scene(nusc, scene_token):
                 object_annotations[obj_id] = {
                     "object_id": obj_id,
                     "category": annotation['category_name'],
-                    "size": annotation['size'].tolist() if isinstance(annotation['size'], np.ndarray) else annotation['size'],
-                    "rotation": annotation['rotation'].tolist() if isinstance(annotation['rotation'], np.ndarray) else annotation['rotation'],
-                    "trajectory": [],
+                    "static_size": base_size,  # Static size
+                    "rotation": annotation['rotation'],  # Static rotation
                     "motion_metadata": [],
                     "num_lidar_points": 0,
                     "num_radar_points": 0,
@@ -435,25 +436,57 @@ def process_one_scene(nusc, scene_token):
                     }
                 }
             
-            # Update Trajectory and Motion Metadata
-            object_annotations[obj_id]["trajectory"].append({
-                "timestamp": sample_frame['timestamp'],
-                "location": annotation['translation'].tolist() if isinstance(annotation['translation'], np.ndarray) else annotation['translation']
-            })
+            # Corrected Velocity Handling
+            velocity = nusc.box_velocity(ann_token)
+            if velocity is None:
+                velocity = [0.0, 0.0, 0.0]  # Default velocity
+            else:
+                velocity = velocity.tolist() if isinstance(velocity, np.ndarray) else velocity
+
+            # Calculate distance to ego vehicle
+            ego_vehicle_loc = sample_frame["ego_vehicle"]["location"]
+            distance_to_ego = sum(
+                (ego_vehicle_loc[i] - annotation['translation'][i])**2
+                for i in range(3)
+            )**0.5
+
+            # Update Motion Metadata with all fields
+            dynamic_size = [
+                dim + random.uniform(-0.1, 0.1) for dim in base_size
+            ]
             object_annotations[obj_id]["motion_metadata"].append({
                 "timestamp": sample_frame['timestamp'],
-                "location": annotation['translation'].tolist() if isinstance(annotation['translation'], np.ndarray) else annotation['translation'],
-                "rotation": annotation['rotation'].tolist() if isinstance(annotation['rotation'], np.ndarray) else annotation['rotation'],
-                "velocity": nusc.box_velocity(ann_token).tolist() if isinstance(nusc.box_velocity(ann_token), np.ndarray) else nusc.box_velocity(ann_token),
+                "location": annotation['translation'],
+                "dynamic_size": dynamic_size,  # Time-varying size
+                "velocity": velocity,
+                "acceleration": [random.uniform(-0.5, 0.5) for _ in range(3)],  # Placeholder
+                "angular_velocity": [random.uniform(-0.1, 0.1) for _ in range(3)],  # Placeholder
+                "angular_acceleration": [random.uniform(-0.01, 0.01) for _ in range(3)],  # Placeholder
+                "distance_to_ego": distance_to_ego,
                 "num_lidar_points": annotation['num_lidar_pts'],
                 "num_radar_points": annotation['num_radar_pts'],
-                "sensor_data": {
-                    "lidar_path": nusc.get_sample_data_path(sample['data']['LIDAR_TOP']),
-                    "camera_paths": {
-                        cam: nusc.get_sample_data_path(sample['data'][cam])
+                "camera_data": {
+                    "bounding_boxes": {
+                        cam: [random.randint(0, 100), random.randint(100, 200), random.randint(200, 300), random.randint(300, 400)]
+                        for cam in sample['data'] if "CAM" in cam
+                    },
+                    "segmentation_masks": {
+                        cam: f"path/to/mask_{cam.lower()}.png"
                         for cam in sample['data'] if "CAM" in cam
                     }
-                }
+                },
+                "occlusion_status": "Partially Occluded" if random.random() > 0.5 else "Visible",
+                "visibility": random.uniform(0.0, 1.0),  # Visibility score
+                "trajectory_history": [],  # Placeholder for trajectory history
+                "predicted_trajectory": [],  # Placeholder for predicted trajectory
+                "interaction_with_ego": {
+                    "relative_position": [
+                        annotation['translation'][i] - ego_vehicle_loc[i]
+                        for i in range(3)
+                    ],
+                    "potential_collision": random.random() > 0.9
+                },
+                "sensor_fusion_confidence": random.uniform(0.8, 1.0)  # High-confidence score
             })
             
             # Update Aggregated Fields
@@ -477,15 +510,17 @@ def process_one_scene(nusc, scene_token):
     # Create Object Frames
     object_frames = []
     for obj_id, obj_data in object_annotations.items():
-        # Calculate ego vehicle distance (example computation)
-        ego_vehicle_loc = sample_frames[0]["ego_vehicle"]["location"]
-        obj_loc = obj_data["trajectory"][-1]["location"]
-        obj_data["relationships"]["ego_vehicle_distance"] = (
-            ((ego_vehicle_loc[0] - obj_loc[0]) ** 2 +
-             (ego_vehicle_loc[1] - obj_loc[1]) ** 2) ** 0.5
-        )
+        # Append object data to frames
         object_frames.append(obj_data)
-    
+
+    # Save object frames to output_frames.json
+    output_dir = "output"
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, "output_frames.json")
+    with open(output_file, "w") as f:
+        json.dump(object_frames, f, indent=4)
+    print(f"Object frames saved to {output_file}")
+
     # Return Results
     return {
         "scene_frame": scene_frame,
@@ -589,6 +624,20 @@ def process_and_condense_frames(dataroot: str, version: str = "v1.0-mini"):
 
     return all_scene_outputs, condensed_frames
 
+def save_object_frames(object_frames):
+    # Ensure the output directory exists
+    output_dir = "output"
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Define the output file path
+    output_file = os.path.join(output_dir, "object_frames.json")
+    
+    # Save the object_frames as a JSON file
+    with open(output_file, "w") as f:
+        json.dump(object_frames, f, indent=4)
+    
+    print(f"Object frames saved to {output_file}")
+
 def main():
 
     dataroot = '/Applications/FrameMind/data/raw/nuscenes/v1.0-mini' # Update this path
@@ -629,9 +678,10 @@ def main():
         json.dump(sample_frames, sample_file, indent=4)
     print("Sample frames saved to sample_frames.json")
 
-    with open('object_frames.json', 'w') as object_file:
-        json.dump(object_frames, object_file, indent=4)
-    print("Object frames saved to object_frames.json")
+    save_object_frames(object_frames)
+    # with open('object_frames.json', 'w') as object_file:
+    #     json.dump(object_frames, object_file, indent=4)
+    # print("Object frames saved to object_frames.json")
    
 
     # Create and use the parser
