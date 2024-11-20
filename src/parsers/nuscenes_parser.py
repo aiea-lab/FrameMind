@@ -6,8 +6,8 @@ from typing import List, Dict, Optional
 from nuscenes.nuscenes import NuScenes
 from src.parsers.nuscenes_parser_config import NuScenesDataParserConfig
 from src.core.nuscenes_database import NuScenesDatabase, Sample
-from parsers.scene_elements import Cameras, SceneBox
-from src.processing import NuScenesParser
+from src.processing import frame_processing
+from src.parsers.scene_elements import Cameras, SceneBox
 
 
 # Custom JSON encoder to handle non-serializable objects

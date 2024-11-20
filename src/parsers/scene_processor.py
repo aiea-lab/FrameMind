@@ -1,4 +1,5 @@
 import os
+import numpy as np
 from datetime import datetime
 from nuscenes import NuScenes
 from src.core.coordinate import Coordinate

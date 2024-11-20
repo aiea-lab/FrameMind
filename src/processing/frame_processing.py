@@ -7,6 +7,8 @@ from src.core.frame_manager import FrameManager
 from src.parsers.nuscenes_parser_config import NuScenesDataParserConfig
 from src.condensing.static_condenser import StaticCondenser
 from src.parsers.numpy_encoder import NumpyEncoder
+from src.parsers.nuscenes_parser import NuScenesParser
+
 
 def process_and_condense_frames(dataroot: str, version: str = "v1.0-mini"):
     """Process frames, update trajectories, and apply condensation."""
@@ -35,9 +37,9 @@ def process_and_condense_frames(dataroot: str, version: str = "v1.0-mini"):
         print(e)
 
     # Condense frames
-    condenser = StaticCondenser()  # Initialize the static condenser
-    condensed_frames = condenser.condense_frames(frame_manager.frames)
-    
+    condenser = StaticCondenser(frame_manager.frames)  # Pass the frames to the StaticCondenser
+    condensed_frames = condenser.condense_frames()
+
     # Output condensed frames to JSON
     output_file_path = "condensed_frames_output.json"
     with open(output_file_path, 'w') as outfile:
@@ -47,7 +49,7 @@ def process_and_condense_frames(dataroot: str, version: str = "v1.0-mini"):
 
     return all_scene_outputs, condensed_frames
 
-def save_object_frames(object_frames):
+def save_object_frames(object_frames, output_file):
     # Ensure the output directory exists
     output_dir = "output"
     os.makedirs(output_dir, exist_ok=True)

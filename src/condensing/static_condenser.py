@@ -29,3 +29,11 @@ class StaticCondenser:
         if self.condensed_frame is None:
             self.combine_static_frames()
         return self.condensed_frame
+
+    def condense_frames(self):
+        # Example: Perform condensation logic on frames
+        condensed = []
+        for frame in self.frames:
+            # Condense logic here (example: deduplication, simplification)
+            condensed.append(frame)
+        return condensed

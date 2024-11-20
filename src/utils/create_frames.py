@@ -1,6 +1,7 @@
 from nuscenes import NuScenes
 from src.core.frame_manager import FrameManager
 from src.core.coordinate import Coordinate
+from src.core.status import Status
 from datetime import datetime
 
 def create_nuscenes_frames(dataroot: str, version: str = 'v1.0-mini'):

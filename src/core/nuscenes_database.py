@@ -6,7 +6,8 @@ from src.elements.camera_data import CameraData
 from src.elements.sample import Sample
 from src.core.scene import Scene  # Import the Scene class from scene.py
 from nuscenes.nuscenes import NuScenes
-from src.parsers.nuscenes_parser_config import NuScenesDataParserConfig  # Ensure the path is correct
+from src.parsers.nuscenes_parser_config import NuScenesDataParserConfig
+from scipy.spatial.transform import Rotation as R  # Ensure the path is correct
 
 
 class NuScenesDatabase:

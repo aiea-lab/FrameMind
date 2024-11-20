@@ -4,12 +4,10 @@ import numpy as np
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        if isinstance(obj, (np.float32, np.float64)):
-            return float(obj)
-        if isinstance(obj, (np.int32, np.int64)):
-            return int(obj)
-        return super(NumpyEncoder, self).default(obj)
+            return obj.tolist()  # Convert ndarray to list
+        if isinstance(obj, np.generic):
+            return obj.item()  # Convert NumPy scalar to Python scalar
+        return super().default(obj)
     
 class CustomJSONEncoder(json.JSONEncoder):
     def default(self, obj):
