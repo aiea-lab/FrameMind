@@ -1,6 +1,6 @@
 # src/core/scene.py
 from typing import List
-from elements.sample import Sample  # Ensure the import path is correct
+from src.elements.sample import Sample  # Ensure the import path is correct
 
 class Scene:
     def __init__(self, token: str, name: str):

@@ -2,12 +2,12 @@
 from typing import Dict
 from pathlib import Path
 import numpy as np
-from elements.camera_data import CameraData
-from elements.sample import Sample
-from core.scene import Scene  # Import the Scene class from scene.py
+from src.elements.camera_data import CameraData
+from src.elements.sample import Sample
+from src.core.scene import Scene  # Import the Scene class from scene.py
 from nuscenes.nuscenes import NuScenes
 from src.parsers.nuscenes_parser_config import NuScenesDataParserConfig  # Ensure the path is correct
-from scipy.spatial.transform import Rotation as R
+
 
 class NuScenesDatabase:
     def __init__(self, config: NuScenesDataParserConfig):  

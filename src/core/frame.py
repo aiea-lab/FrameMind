@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from core.status import Status
-from core.coordinate import Coordinate
+from src.core.status import Status
+from src.core.coordinate import Coordinate
 import numpy as np
 
 class Frame:
