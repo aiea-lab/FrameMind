@@ -62,3 +62,31 @@ def save_object_frames(object_frames, output_file):
         json.dump(object_frames, f, indent=4)
     
     print(f"Object frames saved to {output_file}")
+
+def save_scene_frames(scene_frames, output_file):
+    # Ensure the output directory exists
+    output_dir = "output"
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Define the output file path
+    output_file = os.path.join(output_dir, "scene_frames.json")
+    
+    # Save the scene_frames as a JSON file
+    with open(output_file, "w") as f:
+        json.dump(scene_frames, f, indent=4)
+    
+    print(f"Scene frames saved to {output_file}")
+
+def save_sample_frames(sample_frames, output_file):
+    # Ensure the output directory exists
+    output_dir = "output"
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Define the output file path
+    output_file = os.path.join(output_dir, "sample_frames.json")
+    
+    # Save the sample_frames as a JSON file
+    with open(output_file, "w") as f:
+        json.dump(sample_frames, f, indent=4)
+    
+    print(f"Sample frames saved to {output_file}")

@@ -164,12 +164,12 @@ def process_one_scene(nusc, scene_token):
         object_frames.append(obj_data)
 
     # Save object frames to output_frames.json
-    output_dir = "output"
-    os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, "output_frames.json")
-    with open(output_file, "w") as f:
-        json.dump(object_frames, f, indent=4)
-    print(f"Object frames saved to {output_file}")
+    # output_dir = "output"
+    # os.makedirs(output_dir, exist_ok=True)
+    # output_file = os.path.join(output_dir, "output_frames.json")
+    # with open(output_file, "w") as f:
+    #     json.dump(object_frames, f, indent=4)
+    # print(f"Object frames saved to {output_file}")
 
     # Return Results
     return {

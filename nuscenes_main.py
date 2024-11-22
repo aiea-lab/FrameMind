@@ -28,7 +28,7 @@ from src.processing.frame_processing import process_and_condense_frames
 from src.parsers.numpy_encoder import NumpyEncoder
 from src.utils.create_frames import create_nuscenes_frames
 from src.processing import frame_processing
-from src.processing.frame_processing import save_object_frames
+from src.processing.frame_processing import *
 from src.parsers.scene_processor import process_one_scene
 from src.processing.frame_processing import NuScenesParser
 
@@ -83,39 +83,29 @@ def main():
     object_frames = results['object_frames']
 
     # Save Outputs to JSON Files
-    with open('scene_frame.json', 'w') as scene_file:
-        json.dump(scene_frame, scene_file, indent=4)
-    print("Scene frame saved to scene_frame.json")
-
-    with open('sample_frames.json', 'w') as sample_file:
-        json.dump(sample_frames, sample_file, indent=4)
-    print("Sample frames saved to sample_frames.json")
-
-    with open(output_dir / 'scene_frame.json', 'w') as f:
-        json.dump(scene_frame, f, indent=4)
-    print("Scene frame saved to scene_frame.json")
-
-    with open(output_dir / 'sample_frames.json', 'w') as f:
-        json.dump(sample_frames, f, indent=4)
-    print("Sample frames saved to sample_frames.json")
 
     save_object_frames(object_frames, output_dir / 'object_frames.json')
 
-    # Step 5: Process and condense frames
-    print("Processing and condensing frames...")
-    _, condensed_frames = process_and_condense_frames(dataroot, version)
+    save_sample_frames(sample_frames, output_dir / 'sample_frames.json')
 
-    # Save processed and condensed frames
-    with open(output_dir / 'condensed_frames_output.json', 'w') as f:
-        json.dump([frame.to_dict() for frame in condensed_frames], f, indent=4)
-    print("Condensed frames output saved to condensed_frames_output.json")
+    save_scene_frames(scene_frame,  output_dir / 'scene_frame.json' )
+    
 
-    # Step 6: Save parsed scenes output
-    with open(output_dir / 'parsed_scenes_output.json', 'w') as f:
-        json.dump(all_scene_outputs, f, indent=4)
-    print("Parsed scenes output saved to parsed_scenes_output.json")
+    # # Step 5: Process and condense frames
+    # print("Processing and condensing frames...")
+    # _, condensed_frames = process_and_condense_frames(dataroot, version)
 
-    print("Processing complete!")
+    # # Save processed and condensed frames
+    # with open(output_dir / 'condensed_frames_output.json', 'w') as f:
+    #     json.dump([frame.to_dict() for frame in condensed_frames], f, indent=4)
+    # print("Condensed frames output saved to condensed_frames_output.json")
+
+    # # Step 6: Save parsed scenes output
+    # with open(output_dir / 'parsed_scenes_output.json', 'w') as f:
+    #     json.dump(all_scene_outputs, f, indent=4)
+    # print("Parsed scenes output saved to parsed_scenes_output.json")
+
+    # print("Processing complete!")
 
 if __name__ == "__main__":
     main()
