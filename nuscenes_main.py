@@ -32,6 +32,12 @@ from src.processing.frame_processing import *
 from src.parsers.scene_processor import process_one_scene
 from src.processing.frame_processing import NuScenesParser
 
+# Add new imports for condensation
+from src.condensation.config import CondensationConfig
+from src.condensation.object_condenser import ObjectCondenser
+from src.condensation.sample_condenser import SampleCondenser
+from src.condensation.scene_condenser import SceneCondenser
+
 # from logger import get_logger
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 sys.path.append(str(Path(__file__).resolve().parent.parent / "src"))
@@ -85,27 +91,91 @@ def main():
     # Save Outputs to JSON Files
 
     save_object_frames(object_frames, output_dir / 'object_frames.json')
-
     save_sample_frames(sample_frames, output_dir / 'sample_frames.json')
-
     save_scene_frames(scene_frame,  output_dir / 'scene_frame.json' )
+
+    # Step 5: Initialize condensation
+    print("\nInitializing frame condensation...")
+    condenser_config = CondensationConfig(
+        time_window=0.1,
+        min_confidence=0.7,
+        max_position_gap=0.5,
+        output_dir=output_dir / "condensed"
+    )
+
+    # Initialize condensers
+    object_condenser = ObjectCondenser(condenser_config)
+    sample_condenser = SampleCondenser(condenser_config)
+    scene_condenser = SceneCondenser(condenser_config)
+
+    # Step 6: Perform condensation
+    print("Performing frame condensation...")
     
+    condensed_objects = object_condenser.condense_frames(object_frames)
+    print(f"Object frames condensed: {len(object_frames)} → {len(condensed_objects)}")
+    
+    condensed_samples = sample_condenser.condense_frames(sample_frames)
+    print(f"Sample frames condensed: {len(sample_frames)} → {len(condensed_samples)}")
+    
+    condensed_scene = scene_condenser.condense_frames([scene_frame])
+    print(f"Scene frames processed: 1 → {len(condensed_scene)}")
 
-    # # Step 5: Process and condense frames
-    # print("Processing and condensing frames...")
-    # _, condensed_frames = process_and_condense_frames(dataroot, version)
+    # Add this before condensation
+    print("\nSample frame example:")
+    print(json.dumps(sample_frames[0], indent=2))
 
-    # # Save processed and condensed frames
-    # with open(output_dir / 'condensed_frames_output.json', 'w') as f:
-    #     json.dump([frame.to_dict() for frame in condensed_frames], f, indent=4)
-    # print("Condensed frames output saved to condensed_frames_output.json")
+    print("\nScene frame structure:")
+    print(json.dumps(scene_frame, indent=2))
+    
+    # Step 7: Save condensed frames
+    condensed_dir = output_dir / "condensed"
+    condensed_dir.mkdir(exist_ok=True)
 
-    # # Step 6: Save parsed scenes output
-    # with open(output_dir / 'parsed_scenes_output.json', 'w') as f:
-    #     json.dump(all_scene_outputs, f, indent=4)
-    # print("Parsed scenes output saved to parsed_scenes_output.json")
+    # Save condensed frames with NumpyEncoder
+    with open(condensed_dir / 'condensed_object_frames.json', 'w') as f:
+        json.dump(condensed_objects, f, cls=NumpyEncoder, indent=2)
+    
+    with open(condensed_dir / 'condensed_sample_frames.json', 'w') as f:
+        json.dump(condensed_samples, f, cls=NumpyEncoder, indent=2)
+    
+    with open(condensed_dir / 'condensed_scene_frames.json', 'w') as f:
+        json.dump(condensed_scene, f, cls=NumpyEncoder, indent=2)
 
-    # print("Processing complete!")
+    # Step 8: Save condensation metrics
+    metrics = {
+        'timestamp': datetime.now().isoformat(),
+        'scene_token': scene_token,
+        'statistics': {
+            'object_frames': {
+                'original': len(object_frames),
+                'condensed': len(condensed_objects),
+                'reduction_ratio': 1 - (len(condensed_objects) / len(object_frames))
+            },
+            'sample_frames': {
+                'original': len(sample_frames),
+                'condensed': len(condensed_samples),
+                'reduction_ratio': 1 - (len(condensed_samples) / len(sample_frames))
+            },
+            'scene_frames': {
+                'original': 1,
+                'condensed': len(condensed_scene)
+            }
+        }
+    }
+
+    with open(condensed_dir / 'condensation_metrics.json', 'w') as f:
+        json.dump(metrics, f, indent=2)
+
+    print("\nCondensation complete!")
+    print(f"Results saved to: {condensed_dir}")
+    
+    # Print final summary
+    print("\nProcessing Summary:")
+    print(f"Scene name: {nusc.get('scene', scene_token)['name']}")
+    print(f"Object Frames: {metrics['statistics']['object_frames']['reduction_ratio']*100:.1f}% reduction")
+    print(f"Sample Frames: {metrics['statistics']['sample_frames']['reduction_ratio']*100:.1f}% reduction")
+    print(f"Scene Frames: 1 → {len(condensed_scene)}")
+    
 
 if __name__ == "__main__":
     main()

@@ -1,71 +1,96 @@
-from typing import List, Dict, Tuple
 import numpy as np
-from sklearn.cluster import DBSCAN
-import torch
-import torch.nn as nn
-from .base_condenser import BaseCondenser, CondenserConfig
+from typing import List, Dict
+from .base_condenser import BaseCondenser
+from .config import CondensationConfig
 
 class ObjectCondenser(BaseCondenser):
-    def __init__(self, config: CondenserConfig):
-        super().__init__(config)
-        self.pattern_detector = DBSCAN(eps=0.3, min_samples=5)
+    """Condenser for object frames"""
     
     def condense_frames(self, frames: List[Dict]) -> List[Dict]:
         if not frames:
             return []
-        
-        # Detect motion patterns
-        patterns = self._detect_motion_patterns(frames)
-        
+
         condensed_frames = []
         current_group = []
-        current_pattern = patterns[0]
-        
-        for i, frame in enumerate(frames):
-            if patterns[i] == current_pattern and len(current_group) < 5:
+
+        for frame in frames:
+            if not current_group:
+                current_group.append(frame)
+                continue
+
+            if self._can_merge_frames(current_group[-1], frame):
                 current_group.append(frame)
             else:
-                if current_group:
-                    merged = self._merge_object_frames(current_group)
-                    condensed_frames.append(merged)
+                merged = self._merge_object_frames(current_group)
+                condensed_frames.append(merged)
                 current_group = [frame]
-                current_pattern = patterns[i]
-        
+
         if current_group:
             merged = self._merge_object_frames(current_group)
             condensed_frames.append(merged)
-        
+
         return condensed_frames
-    
-    def _detect_motion_patterns(self, frames: List[Dict]) -> np.ndarray:
-        """Detect motion patterns using DBSCAN"""
-        features = []
-        for frame in frames:
-            metadata = frame['motion_metadata'][0]
-            feature = np.concatenate([
-                metadata['velocity'],
-                metadata['location'],
-                [metadata.get('sensor_fusion_confidence', 0)]
-            ])
-            features.append(feature)
-        
-        return self.pattern_detector.fit_predict(np.array(features))
-    
+
+    def _can_merge_frames(self, frame1: Dict, frame2: Dict) -> bool:
+        """Check if frames can be merged"""
+        meta1 = frame1['motion_metadata'][0]
+        meta2 = frame2['motion_metadata'][0]
+
+        # Time check
+        time_diff = self._calculate_time_difference(
+            meta1['timestamp'],
+            meta2['timestamp']
+        )
+        if time_diff > self.config.time_window:
+            return False
+
+        # Position check
+        pos1 = np.array(meta1['location'])
+        pos2 = np.array(meta2['location'])
+        if np.linalg.norm(pos2 - pos1) > self.config.max_position_gap:
+            return False
+
+        # Confidence check
+        if (meta1.get('sensor_fusion_confidence', 0) < self.config.min_confidence or
+            meta2.get('sensor_fusion_confidence', 0) < self.config.min_confidence):
+            return False
+
+        return True
+
     def _merge_object_frames(self, frames: List[Dict]) -> Dict:
-        """Merge object frames with motion averaging"""
+        """Merge object frames"""
         if not frames:
             return None
-        
+
+        # Use frame with highest confidence as base
         base_frame = max(frames, 
-                        key=lambda x: x['motion_metadata'][0]['sensor_fusion_confidence'])
+                        key=lambda x: x['motion_metadata'][0].get('sensor_fusion_confidence', 0))
         merged = base_frame.copy()
-        metadata = merged['motion_metadata'][0]
+        motion_data = merged['motion_metadata'][0]
+
+        # Calculate weights based on confidence
+        confidences = [f['motion_metadata'][0].get('sensor_fusion_confidence', 0) 
+                      for f in frames]
+        weights = np.array(confidences)
+        weights = weights / weights.sum()
+
+        # Merge motion data
+        all_meta = [f['motion_metadata'][0] for f in frames]
+        motion_data['location'] = np.average([m['location'] for m in all_meta], 
+                                           weights=weights, axis=0).tolist()
         
-        # Average motion data
-        all_metadata = [f['motion_metadata'][0] for f in frames]
-        metadata['location'] = np.mean([m['location'] for m in all_metadata], 
-                                     axis=0).tolist()
-        metadata['velocity'] = np.mean([m['velocity'] for m in all_metadata], 
-                                     axis=0).tolist()
-        
+        if 'velocity' in motion_data:
+            motion_data['velocity'] = np.average([m.get('velocity', [0,0,0]) for m in all_meta],
+                                               weights=weights, axis=0).tolist()
+
+        # Add condensation metadata
+        motion_data['condensed_info'] = {
+            'frame_count': len(frames),
+            'time_span': self._calculate_time_difference(
+                frames[0]['motion_metadata'][0]['timestamp'],
+                frames[-1]['motion_metadata'][0]['timestamp']
+            ),
+            'average_confidence': float(np.mean(confidences))
+        }
+
         return merged
