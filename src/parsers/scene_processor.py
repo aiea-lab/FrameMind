@@ -6,7 +6,7 @@ from src.core.coordinate import Coordinate
 from src.core.frame_manager import FrameManager
 from src.core.status import Status
 from src.parsers.nuscenes_parser_config import NuScenesDataParserConfig
-from src.condensing.static_condenser import StaticCondenser
+# from src.condensing.static_condenser import StaticCondenser
 import random
 import json
 

@@ -5,7 +5,7 @@ from datetime import datetime
 from nuscenes import NuScenes
 from src.core.frame_manager import FrameManager
 from src.parsers.nuscenes_parser_config import NuScenesDataParserConfig
-from src.condensing.static_condenser import StaticCondenser
+# from src.condensing.static_condenser import StaticCondenser
 from src.parsers.numpy_encoder import NumpyEncoder
 from src.parsers.nuscenes_parser import NuScenesParser
 

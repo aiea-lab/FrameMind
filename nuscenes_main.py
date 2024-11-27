@@ -11,7 +11,7 @@ from src.core.status import Status
 from datetime import datetime
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional
-from src.condensing.static_condenser import StaticCondenser
+# from src.condensing.static_condenser import StaticCondenser
 from src.parsers.numpy_encoder import NumpyEncoder
 from src.parsers.scene_elements import Cameras, SceneBox
 from src.elements.cameras import Cameras
@@ -24,10 +24,10 @@ from src.parsers.nuscenes_parser_config import NuScenesDataParserConfig
 from src.core.frame_manager import FrameManager
 from src.parsers.numpy_encoder import NumpyEncoder
 from src.parsers.nuscenes_parser_config import NuScenesDataParserConfig
-from src.processing.frame_processing import process_and_condense_frames
+# from src.processing.frame_processing import process_and_condense_frames
 from src.parsers.numpy_encoder import NumpyEncoder
 from src.utils.create_frames import create_nuscenes_frames
-from src.processing import frame_processing
+# from src.processing import frame_processing
 from src.processing.frame_processing import *
 from src.parsers.scene_processor import process_one_scene
 from src.processing.frame_processing import NuScenesParser
@@ -70,7 +70,7 @@ def main():
 
     # Step 2: Select a Scene
     # Example: Select the first scene in the dataset
-    scene_token = nusc.scene[0]['token']
+    scene_token = nusc.scene[0]['token'] #0061 - Boston level
     print(f"Processing scene: {nusc.get('scene', scene_token)['name']}")
     results = process_one_scene(nusc, scene_token)
 
