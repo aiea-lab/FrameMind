@@ -3,6 +3,7 @@ from pathlib import Path
 import os
 import json
 import random
+import matplotlib.pyplot as plt
 from datetime import datetime
 from nuscenes import NuScenes
 from src.core.coordinate import Coordinate
@@ -37,6 +38,12 @@ from src.condensation.config import CondensationConfig
 from src.condensation.object_condenser import ObjectCondenser
 from src.condensation.sample_condenser import SampleCondenser
 from src.condensation.scene_condenser import SceneCondenser
+
+from src.trajectory.config.trajectory_config import TrajectoryConfig
+from src.trajectory.analysis.trajectory_analyzer import TrajectoryAnalyzer
+from src.trajectory.visualization.trajectory_visualizer import TrajectoryVisualizer
+
+
 
 # from logger import get_logger
 sys.path.append(str(Path(__file__).resolve().parent.parent))
@@ -175,7 +182,114 @@ def main():
     print(f"Object Frames: {metrics['statistics']['object_frames']['reduction_ratio']*100:.1f}% reduction")
     print(f"Sample Frames: {metrics['statistics']['sample_frames']['reduction_ratio']*100:.1f}% reduction")
     print(f"Scene Frames: 1 → {len(condensed_scene)}")
-    
 
+    # Step 9: Initialize trajectory analysis
+    print("\nInitializing trajectory analysis...")
+    trajectory_config = TrajectoryConfig(
+        prediction_horizon=2.0,      # 2 seconds prediction
+        min_frames=3,               # minimum frames needed
+        confidence_threshold=0.7     # minimum confidence score
+    )
+    
+    trajectory_analyzer = TrajectoryAnalyzer(trajectory_config)
+    
+    try:
+        print("Analyzing trajectories...")
+        trajectory_results = trajectory_analyzer.analyze_trajectory(condensed_objects)
+        
+        # Debug print to understand input structure
+        print("\nDebug: First condensed object structure:")
+        if condensed_objects:
+            print(json.dumps(condensed_objects[0], indent=2))
+        
+        # Process and analyze trajectories
+        trajectory_results = {}
+        for obj_frame in condensed_objects:
+            try:
+                # Extract object ID and analyze trajectory
+                obj_id = obj_frame.get('object_id', 'unknown')
+                trajectory_data = trajectory_analyzer.analyze_single_object(obj_frame)
+                if trajectory_data:
+                    trajectory_results[obj_id] = trajectory_data
+            except Exception as e:
+                print(f"Error processing object frame: {e}")
+
+        # Verify trajectory_results is a dictionary
+        if not isinstance(trajectory_results, dict):
+            print(f"Warning: Unexpected trajectory results format: {type(trajectory_results)}")
+            trajectory_results = {}
+        
+        # Save trajectory results
+        trajectory_dir = output_dir / "trajectory"
+        trajectory_dir.mkdir(exist_ok=True)
+
+        with open(trajectory_dir / 'trajectory_analysis.json', 'w') as f:
+            json.dump(trajectory_results, f, cls=NumpyEncoder, indent=2)
+
+        # Print analysis summary
+        print("\nTrajectory Analysis Summary:")
+        print(f"Analyzed trajectories for {len(trajectory_results)} objects")
+
+        # Process each trajectory
+        for obj_id, trajectory in trajectory_results.items():
+            print(f"\nObject {obj_id}:")
+            try:
+                # Access trajectory data with error checking
+                category = trajectory.get('object_category', 'unknown')
+                motion_patterns = trajectory.get('motion_patterns', {})
+                predictions = trajectory.get('predictions', {})
+
+                print(f"Category: {category}")
+                print(f"Average Speed: {motion_patterns.get('avg_speed', 0):.2f} m/s")
+                print(f"Motion Type: "
+                    f"{'Stationary' if motion_patterns.get('is_stationary', True) else 'Moving'}, "
+                    f"{'Turning' if motion_patterns.get('is_turning', False) else 'Straight'}, "
+                    f"{'Accelerating' if motion_patterns.get('is_accelerating', False) else 'Constant Speed'}")
+                print(f"Prediction Confidence: {predictions.get('confidence', 0):.2f}")
+            except Exception as e:
+                print(f"Error processing trajectory for object {obj_id}: {e}")
+
+        print(f"\nTrajectory analysis results saved to: {trajectory_dir}")
+
+    except Exception as e:
+        print(f"Error in trajectory analysis: {e}")
+        trajectory_results = {}
+
+    # Final summary with error handling
+    print("\nFinal Processing Summary:")
+    print(f"Scene name: {nusc.get('scene', scene_token)['name']}")
+    print(f"Object Frames: {metrics['statistics']['object_frames']['reduction_ratio']*100:.1f}% reduction")
+    print(f"Sample Frames: {metrics['statistics']['sample_frames']['reduction_ratio']*100:.1f}% reduction")
+    print(f"Scene Frames: 1 → {len(condensed_scene)}")
+    print(f"Trajectories Analyzed: {len(trajectory_results)}")
+
+
+    # In your main function, after trajectory analysis:
+    try:
+        print("\nGenerating trajectory visualizations...")
+        visualizer = TrajectoryVisualizer()
+        
+        # Create visualization directory
+        vis_dir = trajectory_dir / "visualizations"
+        vis_dir.mkdir(exist_ok=True)
+        
+        # Generate individual trajectory plots
+        for obj_id, trajectory in trajectory_results.items():
+            vis_path = vis_dir / f"trajectory_{obj_id}.png"
+            visualizer.visualize_trajectory(trajectory, str(vis_path))
+        
+        # Generate combined visualization
+        combined_vis_path = vis_dir / "all_trajectories.png"
+        visualizer.visualize_multiple_trajectories(
+            trajectory_results, 
+            str(combined_vis_path)
+        )
+        
+        print(f"Visualizations saved to: {vis_dir}")
+
+    except Exception as e:
+        print(f"Error generating visualizations: {e}")
+
+    
 if __name__ == "__main__":
     main()
