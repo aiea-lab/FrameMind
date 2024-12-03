@@ -1,0 +1,20 @@
+{
+  "timestamp": "2024-11-29T23:38:01.994146",
+  "scene_token": "cc8c0bf57f984915a77078b10eb33198",
+  "statistics": {
+    "object_frames": {
+      "original": 227,
+      "condensed": 226,
+      "reduction_ratio": 0.004405286343612369
+    },
+    "sample_frames": {
+      "original": 39,
+      "condensed": 39,
+      "reduction_ratio": 0.0
+    },
+    "scene_frames": {
+      "original": 1,
+      "condensed": 1
+    }
+  }
+}

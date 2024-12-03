@@ -5,8 +5,9 @@ from datetime import datetime
 class TrajectoryPoint:
     """Represents a single point in a trajectory, containing position and timestamp."""
     def __init__(self, timestamp: datetime, position: np.ndarray):
-        self.timestamp = timestamp
-        self.position = position
+        self.object_id = object_id
+        self.positions = []
+        self.timestamps = []
 
 class Trajectory:
     """Class that manages a trajectory, defined by a series of points over time."""
@@ -35,6 +36,20 @@ class Trajectory:
                 {"timestamp": point.timestamp.isoformat(), "position": point.position.tolist()}
                 for point in self.points
             ]
+        }
+
+    def add_position(self, position, timestamp):
+        """Add a position and timestamp to the trajectory."""
+        print(f"Adding position {position} at time {timestamp} for object {self.object_id}")  # Debug
+        self.positions.append(position)
+        self.timestamps.append(timestamp)
+
+    def get_trajectory(self):
+        """Return the trajectory data for output."""
+        return {
+            "object_id": self.object_id,
+            "positions": self.positions,
+            "timestamps": self.timestamps,
         }
 
 class TrajectoryManager:

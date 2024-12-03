@@ -4,7 +4,11 @@ import numpy as np
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional
 from nuscenes.nuscenes import NuScenes
-from scipy.spatial.transform import Rotation as R
+from src.parsers.nuscenes_parser_config import NuScenesDataParserConfig
+from src.core.nuscenes_database import NuScenesDatabase, Sample
+from src.processing import frame_processing
+from src.parsers.scene_elements import Cameras, SceneBox
+
 
 # Custom JSON encoder to handle non-serializable objects
 class NumpyEncoder(json.JSONEncoder):
@@ -104,4 +108,89 @@ class NuScenesParser:
             'camera_poses': poses,
             'camera_intrinsics': intrinsics,
             'annotations': annotations
+        }
+class NuScenesParser:
+    def __init__(self, config: NuScenesDataParserConfig):
+        self.config = config
+        self.database = NuScenesDatabase(config)
+
+    def parse_all_scenes(self):
+        # Loop through all scenes in the dataset
+        all_scene_outputs = []
+        for scene in self.database.nusc.scene:
+            scene_token = scene['token']
+            scene_output = self.parse_scene(scene_token)
+            all_scene_outputs.append(scene_output)
+        return all_scene_outputs
+
+    def parse_scene(self, scene_token: str):
+        # Load and parse a single scene
+        self.database.load_scene(scene_token)
+        return self._generate_scene_outputs(scene_token)
+
+    def _generate_scene_outputs(self, scene_token: str):
+        # Get the scene object
+        scene = self.database.scenes[scene_token]
+        sample_outputs = []
+
+        # Iterate over all samples (snapshots) in the scene
+        for sample in scene.samples:
+            sample_output = self._generate_sample_output(sample)
+            sample_outputs.append(sample_output)
+
+        # Return scene-level output containing all samples' data
+        return {
+            'scene_name': scene.name,
+            'samples': sample_outputs
+        }
+
+    def _generate_sample_output(self, sample: Sample):
+        image_filenames = []
+        poses = []
+        intrinsics = []
+        annotations = []  # New list to store annotation details
+
+        # Collect camera data for each camera in the sample
+        for camera in self.config.cameras:
+            camera_data = sample.camera_data.get(camera)
+            if camera_data:
+                image_filenames.append(camera_data.image_path)
+                poses.append(camera_data.extrinsics)
+                intrinsics.append(camera_data.intrinsics)
+
+        poses = np.stack(poses, axis=0)
+        intrinsics = np.stack(intrinsics, axis=0)
+
+        # Process annotations
+        for ann_token in sample.annotations:
+            ann = self.database.nusc.get('sample_annotation', ann_token)
+            annotation_details = {
+                'category': ann['category_name'],
+                'location': ann['translation'],
+                'size': ann['size'],
+                'rotation': ann['rotation'],
+                'velocity': self.database.nusc.box_velocity(ann_token),
+                'num_lidar_pts': ann['num_lidar_pts'],
+                'num_radar_pts': ann['num_radar_pts']
+                #description
+            }
+            annotations.append(annotation_details)
+
+        # Define the bounding box (you can replace this with actual bounding box data if available)
+        scene_box = {
+            'aabb': [[-1, -1, -1], [1, 1, 1]],
+            'near': 0.1,
+            'far': 100.0,
+            'radius': 1.0,
+            'collider_type': 'box'
+        }
+
+        # Return the data for a single sample (snapshot)
+        return {
+            'timestamp': sample.timestamp,
+            'image_filenames': image_filenames,
+            'camera_poses': poses,
+            'camera_intrinsics': intrinsics,
+            'scene_box': scene_box,
+            'annotations': annotations  # Include annotations in the output
         }

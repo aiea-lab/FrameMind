@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from core.status import Status
-from core.coordinate import Coordinate
+from src.core.status import Status
+from src.core.coordinate import Coordinate
 import numpy as np
 
 class Frame:
@@ -35,6 +35,7 @@ class Frame:
         self.num_radar_pts: int = 0
         self.bbox_2d: Optional[List[float]] = None
         self.bbox_3d: Optional[List[float]] = None
+        self.condensed_features = {}
 
     def add_slot(self, slot_name: str, value: Any):
         self.slots[slot_name] = value
