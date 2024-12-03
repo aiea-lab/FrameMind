@@ -83,7 +83,7 @@ def main():
 
     # Step 2: Select a Scene
     # Example: Select the first scene in the dataset
-    scene_token = nusc.scene[0]['token'] #0061 - Boston level
+    scene_token = nusc.scene[0]['token'] #0061 - Boston Scene
     print(f"Processing scene: {nusc.get('scene', scene_token)['name']}")
     results = process_one_scene(nusc, scene_token)
 
