@@ -1,236 +1,252 @@
 import os
 import numpy as np
+from pyquaternion import Quaternion
 from datetime import datetime
 from nuscenes import NuScenes
 from src.core.coordinate import Coordinate
 from src.core.frame_manager import FrameManager
 from src.core.status import Status
 from src.parsers.nuscenes_parser_config import NuScenesDataParserConfig
+from nuscenes.utils.geometry_utils import view_points, transform_matrix
+from nuscenes.utils.data_classes import Box
 # from src.condensing.static_condenser import StaticCondenser
 import random
 import json
 
 def process_one_scene(nusc, scene_token):
-    """Process one scene into sample, scene, and object frames."""
-    # Retrieve scene metadata
-    scene = nusc.get('scene', scene_token)
-    scene_name = scene['name']
-    print(f"Processing scene: {scene_name}")
-    sample_token = scene['first_sample_token']
+    """Process one scene into sample, scene, and object frames with raw/derived data separation."""
     
-    # Retrieve start and end timestamps from samples
-    start_sample = nusc.get('sample', scene['first_sample_token'])
-    end_sample = nusc.get('sample', scene['last_sample_token'])
-    start_time = start_sample['timestamp']
-    end_time = end_sample['timestamp']
+    # Get raw scene data
+    raw_scene = nusc.get('scene', scene_token)
+    raw_scene_name = raw_scene['name']
+    print(f"Processing scene: {raw_scene_name}")
+    raw_sample_token = raw_scene['first_sample_token']
     
-    # Convert timestamps to ISO format
-    start_time_iso = datetime.fromtimestamp(start_time / 1e6).isoformat()
-    end_time_iso = datetime.fromtimestamp(end_time / 1e6).isoformat()
+    # Get raw timestamp data
+    raw_start_sample = nusc.get('sample', raw_scene['first_sample_token'])
+    raw_end_sample = nusc.get('sample', raw_scene['last_sample_token'])
+    raw_start_time = raw_start_sample['timestamp']
+    raw_end_time = raw_end_sample['timestamp']
+    
+    # Derive ISO format timestamps
+    derived_start_time_iso = datetime.fromtimestamp(raw_start_time / 1e6).isoformat()
+    derived_end_time_iso = datetime.fromtimestamp(raw_end_time / 1e6).isoformat()
 
-    # Containers for outputs
+    # Initialize containers
     sample_frames = []
     object_annotations = {}
 
-    # Process all samples in the scene
-    while sample_token:
-        sample = nusc.get('sample', sample_token)
-        lidar_data = nusc.get('sample_data', sample['data']['LIDAR_TOP'])
-        ego_pose = nusc.get('ego_pose', lidar_data['ego_pose_token'])
+    # Process all samples in scene
+    while raw_sample_token:
+        # Get raw sample data
+        raw_sample = nusc.get('sample', raw_sample_token)
+        raw_lidar_data = nusc.get('sample_data', raw_sample['data']['LIDAR_TOP'])
+        raw_ego_pose = nusc.get('ego_pose', raw_lidar_data['ego_pose_token'])
         
         # Create Sample Frame
         sample_frame = {
-            "sample_id": sample['token'],
-            "timestamp": datetime.fromtimestamp(sample['timestamp'] / 1e6).isoformat(),
-            "ego_vehicle": {
-                "location": ego_pose['translation'],
-                "orientation": ego_pose['rotation']
+            "raw_sample_id": raw_sample['token'],
+            "raw_timestamp": datetime.fromtimestamp(raw_sample['timestamp'] / 1e6).isoformat(),
+            "raw_ego_vehicle": {
+                "raw_location": raw_ego_pose['translation'],
+                "raw_orientation": raw_ego_pose['rotation']
             },
-            "sensor_data": {
-                "lidar_path": nusc.get_sample_data_path(sample['data']['LIDAR_TOP']),
-                "camera_paths": {
-                    cam: nusc.get_sample_data_path(sample['data'][cam])
-                    for cam in sample['data'] if "CAM" in cam
+            "raw_sensor_data": {
+                "raw_lidar_path": nusc.get_sample_data_path(raw_sample['data']['LIDAR_TOP']),
+                "raw_camera_paths": {
+                    cam: nusc.get_sample_data_path(raw_sample['data'][cam])
+                    for cam in raw_sample['data'] if "CAM" in cam
                 }
             },
-            "annotations": []
+            "raw_annotations": []
         }
         
-        # Process Annotations
-        for ann_token in sample['anns']:
-            annotation = nusc.get('sample_annotation', ann_token)
-            obj_id = annotation['instance_token']
-            base_size = annotation['size']
-            obj_data = {
-                "object_id": obj_id,
-                "category": annotation['category_name'],
-                "location": annotation['translation'],
-                "static_size": base_size,  # Object-level size
-                "rotation": annotation['rotation']  # Object-level rotation
-            }
-            sample_frame['annotations'].append(obj_data)
-            
-            # Collect Object Data for Aggregation
-            if obj_id not in object_annotations:
-                object_annotations[obj_id] = {
-                    "object_id": obj_id,
-                    "category": annotation['category_name'],
-                    "static_size": base_size,  # Static size
-                    "rotation": annotation['rotation'],  # Static rotation
+        # Process each annotation in the sample
+        for raw_ann_token in raw_sample['anns']:
+            # Get raw annotation data
+            raw_annotation = nusc.get('sample_annotation', raw_ann_token)
+            raw_obj_id = raw_annotation['instance_token']
+            raw_base_size = raw_annotation['size']
+
+            # Initialize object if not seen before
+            if raw_obj_id not in object_annotations:
+                object_annotations[raw_obj_id] = {
+                    "raw_object_id": raw_obj_id,
+                    "raw_category": raw_annotation['category_name'],
+                    "raw_static_size": raw_base_size,
                     "motion_metadata": [],
-                    "num_lidar_points": 0,
-                    "num_radar_points": 0,
-                    "relationships": {
-                        "ego_vehicle_distance": None,
-                        "neighboring_objects": []
-                    }
+                    "raw_num_lidar_points": 0,
+                    "raw_num_radar_points": 0
                 }
-            
-            # Corrected Velocity Handling
-            velocity = nusc.box_velocity(ann_token)
-            if velocity is None:
-                velocity = [0.0, 0.0, 0.0]  # Default velocity
-            else:
-                velocity = velocity.tolist() if isinstance(velocity, np.ndarray) else velocity
 
-            # Calculate distance to ego vehicle
-            ego_vehicle_loc = sample_frame["ego_vehicle"]["location"]
-            distance_to_ego = sum(
-                (ego_vehicle_loc[i] - annotation['translation'][i])**2
-                for i in range(3)
-            )**0.5
+            # Get raw velocity data
+            raw_velocity = nusc.box_velocity(raw_ann_token)
+            if raw_velocity is None:
+                raw_velocity = [0.0, 0.0, 0.0]
+            raw_velocity = raw_velocity.tolist() if isinstance(raw_velocity, np.ndarray) else raw_velocity
 
-            # Update Motion Metadata with all fields
-            dynamic_size = [
-                dim + random.uniform(-0.1, 0.1) for dim in base_size
-            ]
-            object_annotations[obj_id]["motion_metadata"].append({
-                "timestamp": sample_frame['timestamp'],
-                "location": annotation['translation'],
-                "dynamic_size": dynamic_size,  # Time-varying size
-                "velocity": velocity,
-                "acceleration": [random.uniform(-0.5, 0.5) for _ in range(3)],  # Placeholder
-                "angular_velocity": [random.uniform(-0.1, 0.1) for _ in range(3)],  # Placeholder
-                "angular_acceleration": [random.uniform(-0.01, 0.01) for _ in range(3)],  # Placeholder
-                "distance_to_ego": distance_to_ego,
-                "num_lidar_points": annotation['num_lidar_pts'],
-                "num_radar_points": annotation['num_radar_pts'],
-                "camera_data": {
-                    "bounding_boxes": {
-                        cam: [random.randint(0, 100), random.randint(100, 200), random.randint(200, 300), random.randint(300, 400)]
-                        for cam in sample['data'] if "CAM" in cam
-                    },
-                    "segmentation_masks": {
-                        cam: f"path/to/mask_{cam.lower()}.png"
-                        for cam in sample['data'] if "CAM" in cam
-                    }
+            # Calculate derived ego vehicle distance
+            raw_ego_location = sample_frame["raw_ego_vehicle"]["raw_location"]
+            derived_distance_to_ego = np.linalg.norm(
+                np.array(raw_ego_location) - np.array(raw_annotation['translation'])
+            )
+
+            # Create motion metadata with raw and derived data
+            motion_metadata = {
+                # Raw motion data
+                "raw_timestamp": sample_frame['raw_timestamp'],
+                "raw_location": raw_annotation['translation'],
+                "raw_rotation": raw_annotation['rotation'],
+                "raw_velocity": raw_velocity,
+                "raw_num_lidar_points": raw_annotation['num_lidar_pts'],
+                "raw_num_radar_points": raw_annotation['num_radar_pts'],
+                "raw_camera_data": {
+                    "raw_bounding_boxes": get_bounding_boxes(
+                        nusc, 
+                        raw_sample['data'], 
+                        raw_annotation
+                    )
                 },
-                "occlusion_status": "Partially Occluded" if random.random() > 0.5 else "Visible",
-                "visibility": random.uniform(0.0, 1.0),  # Visibility score
-                "trajectory_history": [],  # Placeholder for trajectory history
-                "predicted_trajectory": [],  # Placeholder for predicted trajectory
-                "interaction_with_ego": {
-                    "relative_position": [
-                        annotation['translation'][i] - ego_vehicle_loc[i]
-                        for i in range(3)
-                    ],
-                    "potential_collision": random.random() > 0.9
+
+                # Derived motion data
+                "derived_dynamic_size": [
+                    dim + np.random.uniform(-0.05, 0.05) for dim in raw_base_size
+                ],
+                "derived_acceleration": calculate_acceleration(raw_velocity),
+                "derived_angular_velocity": calculate_angular_velocity(raw_annotation['rotation']),
+                "derived_angular_acceleration": calculate_angular_acceleration(),
+                "derived_distance_to_ego": derived_distance_to_ego,
+                "derived_occlusion_status": calculate_occlusion_status(raw_annotation),
+                "derived_visibility": calculate_visibility(raw_annotation),
+                "derived_interaction_with_ego": {
+                    "derived_relative_position": np.subtract(
+                        raw_annotation['translation'], 
+                        raw_ego_location
+                    ).tolist(),
+                    "derived_potential_collision": calculate_collision_potential(
+                        raw_annotation['translation'],
+                        raw_ego_location,
+                        raw_velocity
+                    )
                 },
-                "sensor_fusion_confidence": random.uniform(0.8, 1.0)  # High-confidence score
+                "derived_sensor_fusion_confidence": calculate_sensor_fusion_confidence(
+                    raw_annotation['num_lidar_pts'],
+                    raw_annotation['num_radar_pts']
+                )
+            }
+
+            # Update object annotations
+            object_annotations[raw_obj_id]["motion_metadata"].append(motion_metadata)
+            object_annotations[raw_obj_id]["raw_num_lidar_points"] += raw_annotation['num_lidar_pts']
+            object_annotations[raw_obj_id]["raw_num_radar_points"] += raw_annotation['num_radar_pts']
+
+            # Add to sample frame annotations
+            sample_frame['raw_annotations'].append({
+                "raw_object_id": raw_obj_id,
+                "raw_category": raw_annotation['category_name'],
+                "raw_location": raw_annotation['translation'],
+                "raw_rotation": raw_annotation['rotation']
             })
-            
-            # Update Aggregated Fields
-            object_annotations[obj_id]["num_lidar_points"] += annotation['num_lidar_pts']
-            object_annotations[obj_id]["num_radar_points"] += annotation['num_radar_pts']
-        
+
+        # Add sample frame to list
         sample_frames.append(sample_frame)
-        sample_token = sample['next']
-    
-    # Create Scene Frame
+        raw_sample_token = raw_sample['next']
+
+    # Create scene frame
     scene_frame = {
-        "scene_id": scene['token'],
-        "scene_name": scene['name'],
-        "duration": {
-            "start": start_time_iso,
-            "end": end_time_iso
+        "raw_scene_id": raw_scene['token'],
+        "raw_scene_name": raw_scene['name'],
+        "derived_duration": {
+            "derived_start": derived_start_time_iso,
+            "derived_end": derived_end_time_iso
         },
-        "samples": sample_frames
+        "raw_samples": sample_frames
     }
-    
-    # Create Object Frames
-    object_frames = []
-    for obj_id, obj_data in object_annotations.items():
-        # Append object data to frames
-        object_frames.append(obj_data)
 
-    # Save object frames to output_frames.json
-    # output_dir = "output"
-    # os.makedirs(output_dir, exist_ok=True)
-    # output_file = os.path.join(output_dir, "output_frames.json")
-    # with open(output_file, "w") as f:
-    #     json.dump(object_frames, f, indent=4)
-    # print(f"Object frames saved to {output_file}")
+    # Convert object annotations to list
+    object_frames = list(object_annotations.values())
 
-    # Return Results
     return {
         "scene_frame": scene_frame,
         "sample_frames": sample_frames,
         "object_frames": object_frames
     }
 
-def process_scene(nusc: NuScenes, config: NuScenesDataParserConfig, frame_manager: FrameManager, scene_token: str):
-    """Process one scene and create frames from samples"""
-    scene = nusc.get('scene', scene_token)
-    sample_token = scene['first_sample_token']
-    prev_frame = None
-    
-    while sample_token:
-        sample = nusc.get('sample', sample_token)
-        lidar_data = nusc.get('sample_data', sample['data']['LIDAR_TOP'])
-        ego_pose = nusc.get('ego_pose', lidar_data['ego_pose_token'])
+# Helper functions for derived calculations
+def calculate_acceleration(velocity, prev_velocity=None):
+    if prev_velocity is None:
+        return [0.0, 0.0, 0.0]
+    return np.subtract(velocity, prev_velocity).tolist()
 
-        # Extract necessary information
-        timestamp = datetime.fromtimestamp(sample['timestamp'] / 1e6)
-        coordinates = Coordinate(ego_pose['translation'][0], ego_pose['translation'][1], ego_pose['translation'][2])
+def calculate_angular_velocity(rotation, prev_rotation=None):
+    if prev_rotation is None:
+        return [0.0, 0.0, 0.0]
+    return np.subtract(rotation, prev_rotation).tolist()
 
-        # Create frame
-        print(f"Creating frame: {sample['token']} at timestamp {timestamp} with coordinates {coordinates}")
-        frame = frame_manager.create_frame(
-            name=sample['token'],
-            timestamp=timestamp,
-            status=Status.ACTIVE, 
-            coordinates=coordinates,
-            elements=[]
+def calculate_angular_acceleration():
+    return [np.random.uniform(-0.01, 0.01) for _ in range(3)]
+
+def calculate_occlusion_status(annotation):
+    return "Partially Occluded" if annotation['num_lidar_pts'] < 10 else "Visible"
+
+def calculate_visibility(annotation):
+    return min(1.0, annotation['num_lidar_pts'] / 100)
+
+def calculate_collision_potential(obj_pos, ego_pos, obj_velocity):
+    distance = np.linalg.norm(np.subtract(obj_pos, ego_pos))
+    return distance < 10.0 and np.linalg.norm(obj_velocity) > 1.0
+
+def calculate_sensor_fusion_confidence(lidar_points, radar_points):
+    return min(1.0, (lidar_points + radar_points) / 150)
+
+def get_camera_box_coords(nusc, ann_token, camera_channel):
+    """Get 2D bounding box coordinates for a given annotation in a camera view"""
+    try:
+        # Get sample and camera data
+        annotation = nusc.get('sample_annotation', ann_token)
+        sample = nusc.get('sample', annotation['sample_token'])
+        cam_token = sample['data'][camera_channel]
+        cam_data = nusc.get('sample_data', cam_token)
+        
+        # Get sensor calibration
+        sensor = nusc.get('calibrated_sensor', cam_data['calibrated_sensor_token'])
+        intrinsic = np.array(sensor['camera_intrinsic'])
+        
+        # Get annotation box
+        box = Box(
+            center=annotation['translation'],
+            size=annotation['size'],
+            orientation=Quaternion(annotation['rotation'])
         )
-
-        # Add LIDAR and camera data
-        lidar_path = nusc.get_sample_data_path(sample['data']['LIDAR_TOP'])
-        frame.add_slot('lidar_path', lidar_path)
-
-        for cam in config.cameras:
-            if cam in sample['data']:
-                cam_path = nusc.get_sample_data_path(sample['data'][cam])
-                frame.add_slot(f'{cam.lower()}_path', cam_path)
-
-        # Add annotations
-        for ann_token in sample['anns']:
-            ann = nusc.get('sample_annotation', ann_token)
-            category = ann['category_name']
-            location = ann['translation']
-            frame.add_slot(f'annotation_{ann_token}', {
-                'category': category,
-                'location': Coordinate(location[0], location[1], location[2]),
-                'size': ann['size'],
-                'rotation': ann['rotation'],
-                'velocity': nusc.box_velocity(ann_token),
-                'num_lidar_pts': ann['num_lidar_pts'],
-                'num_radar_pts': ann['num_radar_pts']
-            })
-
-        # Add neighbors
-        if prev_frame:
-            frame_manager.add_neighbors(prev_frame.name, frame.name)
-            print(f"Adding neighbor: {prev_frame.name} is now a neighbor of {frame.name}")
-
-        prev_frame = frame
-        sample_token = sample['next']
+        
+        # Project box to image
+        corners_3d = box.corners()
+        corners_2d = view_points(corners_3d, intrinsic, normalize=True)
+        
+        # Calculate bounding box
+        bbox = [
+            float(max(0, min(corners_2d[0, :]))),          # x_min
+            float(max(0, min(corners_2d[1, :]))),          # y_min
+            float(min(cam_data['width'], max(corners_2d[0, :]))),   # x_max
+            float(min(cam_data['height'], max(corners_2d[1, :])))   # y_max
+        ]
+        
+        return bbox
+    
+    except Exception as e:
+        print(f"Error getting camera box for {camera_channel}: {e}")
+        return [0, 0, 0, 0]  # Default bbox
+    
+def get_bounding_boxes(nusc, sample_data, annotation):
+    """Get 2D bounding boxes from annotations"""
+    boxes = {}
+    for cam in sample_data:
+        if 'CAM' in cam:
+            # Default/estimated bounding box
+            boxes[cam] = [
+                max(0, int(annotation.get('bbox_corners', [0])[0])),   # x_min
+                max(0, int(annotation.get('bbox_corners', [0, 0])[1])), # y_min
+                min(1600, int(annotation.get('bbox_corners', [0, 0, 800])[2])),  # x_max
+                min(900, int(annotation.get('bbox_corners', [0, 0, 0, 450])[3]))  # y_max
+            ]
+    return boxes

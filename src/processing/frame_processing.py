@@ -8,6 +8,7 @@ from src.parsers.nuscenes_parser_config import NuScenesDataParserConfig
 # from src.condensing.static_condenser import StaticCondenser
 from src.parsers.numpy_encoder import NumpyEncoder
 from src.parsers.nuscenes_parser import NuScenesParser
+import numpy as np
 
 
 def process_and_condense_frames(dataroot: str, version: str = "v1.0-mini"):
@@ -49,8 +50,24 @@ def process_and_condense_frames(dataroot: str, version: str = "v1.0-mini"):
 
     return all_scene_outputs, condensed_frames
 
+def convert_numpy_types(data):
+    """Convert numpy types to Python native types"""
+    if isinstance(data, dict):
+        return {key: convert_numpy_types(value) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [convert_numpy_types(item) for item in data]
+    elif isinstance(data, np.ndarray):
+        return data.tolist()
+    elif isinstance(data, (np.int_, np.intc, np.intp, np.int8, np.int16, np.int32, np.int64)):
+        return int(data)
+    elif isinstance(data, (np.float_, np.float16, np.float32, np.float64)):
+        return float(data)
+    elif isinstance(data, np.bool_):
+        return bool(data)
+    return data
+
 def save_object_frames(object_frames, output_file):
-    # Ensure the output directory exists
+    converted_frames = convert_numpy_types(object_frames)
     output_dir = "output"
     os.makedirs(output_dir, exist_ok=True)
     
@@ -59,7 +76,7 @@ def save_object_frames(object_frames, output_file):
     
     # Save the object_frames as a JSON file
     with open(output_file, "w") as f:
-        json.dump(object_frames, f, indent=4)
+        json.dump(converted_frames, f, indent=4)
     
     print(f"Object frames saved to {output_file}")
 

@@ -82,10 +82,10 @@ def main():
     all_scene_outputs = parser.parse_all_scenes()
 
     # Step 2: Select a Scene
-    # Example: Select the first scene in the dataset
-    scene_token = nusc.scene[0]['token'] #0061 - Boston Scene
+    # Example: Select the third scene in the dataset
+    scene_token = nusc.scene[3]['token'] #scene-0655 - Parking lot, parked cars, jaywalker, be... [18-08-27 15:51:32]   20s, boston-seaport, #anns:2332
     print(f"Processing scene: {nusc.get('scene', scene_token)['name']}")
-    results = process_one_scene(nusc, scene_token)
+    
 
     # Step 3: Process the Selected Scene
     results = process_one_scene(nusc, scene_token)
