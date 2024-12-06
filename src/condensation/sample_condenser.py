@@ -33,8 +33,8 @@ class SampleCondenser(BaseCondenser):
     def _can_merge_samples(self, frame1: Dict, frame2: Dict) -> bool:
         """Check if sample frames can be merged"""
         time_diff = self._calculate_time_difference(
-            frame1['timestamp'],
-            frame2['timestamp']
+            frame1['raw_timestamp'],
+            frame2['raw_timestamp']
         )
         return time_diff <= self.config.time_window
 

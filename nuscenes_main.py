@@ -43,8 +43,6 @@ from src.trajectory.config.trajectory_config import TrajectoryConfig
 from src.trajectory.analysis.trajectory_analyzer import TrajectoryAnalyzer
 from src.trajectory.visualization.trajectory_visualizer import TrajectoryVisualizer
 
-
-
 # from logger import get_logger
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 sys.path.append(str(Path(__file__).resolve().parent.parent / "src"))
@@ -181,6 +179,7 @@ def main():
     print(f"Scene name: {nusc.get('scene', scene_token)['name']}")
     print(f"Object Frames: {metrics['statistics']['object_frames']['reduction_ratio']*100:.1f}% reduction")
     print(f"Sample Frames: {metrics['statistics']['sample_frames']['reduction_ratio']*100:.1f}% reduction")
+    
     print(f"Scene Frames: 1 → {len(condensed_scene)}")
 
     # Step 9: Initialize trajectory analysis
