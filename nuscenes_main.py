@@ -103,7 +103,7 @@ def main():
     print("\nInitializing frame condensation...")
     condenser_config = CondensationConfig(
         time_window=0.1,
-        min_confidence=0.7,
+        min_confidence=0.3,
         max_position_gap=0.5, 
         output_dir=output_dir / "condensed"
     )

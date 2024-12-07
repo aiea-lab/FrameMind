@@ -10,7 +10,7 @@ class CondensationConfig:
     max_time_gap: float = 0.5         # maximum time gap to consider
 
     # Quality thresholds
-    min_confidence: float = 0.7       # minimum confidence score
+    min_confidence: float = 0.3       # minimum confidence score
     min_visibility: float = 0.3       # minimum visibility score
     min_lidar_points: int = 5         # minimum LiDAR points
 
