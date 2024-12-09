@@ -1,20 +1,10 @@
 {
-  "timestamp": "2024-12-08T21:09:19.980721",
+  "timestamp": "2024-12-09T14:51:16.871925",
   "scene_token": "bebf5f5b2a674631ab5c88fd1aa9e87a",
   "statistics": {
-    "object_frames": {
-      "original": 140,
-      "condensed": 37,
-      "reduction_ratio": 0.7357142857142858
-    },
-    "sample_frames": {
-      "original": 41,
-      "condensed": 41,
-      "reduction_ratio": 0.0
-    },
-    "scene_frames": {
-      "original": 1,
-      "condensed": 1
-    }
+    "frame_reduction_ratio": 0.7357142857142858,
+    "avg_tracking_confidence": 0.0,
+    "avg_classification_confidence": 0.0,
+    "processing_time": 0.15
   }
 }
