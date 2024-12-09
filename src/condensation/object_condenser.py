@@ -56,6 +56,7 @@ class ObjectCondenser:
 
     def __init__(self, config):
         self.config = config
+        self.time_window = getattr(config, 'time_window', 0.2)
 
     def _parse_timestamp(self, timestamp_str: str) -> float:
         """Convert timestamp string to float seconds."""
@@ -141,88 +142,125 @@ class ObjectCondenser:
         objects2 = {m['raw_object_id'] for m in frame2['motion_metadata']}
         return bool(objects1 & objects2)
 
-    def _merge_object_frames(self, frames: List[Dict]) -> Optional[Dict]:
-        """Merge multiple object frames into a condensed format."""
-        if not frames:
-            return None
+    def merge_object_frames(self, base_frame, frames_to_merge):
+        """
+        Merge multiple object frames into one, with error handling for empty frames.
+        """
         try:
-            # Use the first frame as a base
-            base_frame = frames[0]
-            merged = {
-                "frame_id": None,  # Will be computed later
-                "raw_object_id": base_frame['motion_metadata'][0]['raw_object_id'],
-                "raw_category": base_frame['motion_metadata'][0]['raw_category'],
-                "raw_static_size": base_frame.get('raw_static_size', []),
-                "condensed_motion_metadata": {},
-                "condensed_info": {}
-            }
-
-            # Group motion metadata by object ID
-            object_metadata = []
-            source_frame_ids = []
-
-            for frame in frames:
-                for motion in frame['motion_metadata']:
-                    if motion['raw_object_id'] == merged["raw_object_id"]:
-                        object_metadata.append(motion)
-                        source_frame_ids.append(motion['raw_timestamp'])
-
-            if not object_metadata:
-                logger.warning("No valid motion metadata found for merging.")
+            object_id = (
+                base_frame.get('raw_object_id') or  # Check direct object ID first
+                base_frame.get('object_id') or      # Alternative field name
+                (base_frame.get('motion_metadata', [{}])[0].get('raw_object_id')  # Check in metadata
+                if base_frame.get('motion_metadata') else None) or
+                'unknown'  # Fallback value
+            )
+            # Check if base_frame has valid motion metadata
+            if not base_frame.get('motion_metadata') or len(base_frame['motion_metadata']) == 0:
+                print(f"Warning: Base frame has no motion metadata")
                 return None
 
-            # Compute weighted averages and merged fields
-            confidences = np.array([m['derived_sensor_fusion_confidence'] for m in object_metadata])
-            confidences = np.maximum(confidences, 0.1)  # Avoid zero weights
-            weights = confidences / np.sum(confidences)
-
-            # Average key fields
-            locations = np.array([m['raw_location'] for m in object_metadata])
-            velocities = np.array([m.get('raw_velocity', [0, 0, 0]) for m in object_metadata])
-            sizes = np.array([m.get('derived_dynamic_size', [0, 0, 0]) for m in object_metadata])
-            visibilities = np.mean([m['derived_visibility'] for m in object_metadata])
-
-            avg_location = np.average(locations, weights=weights, axis=0).tolist()
-            avg_velocity = np.average(velocities, weights=weights, axis=0).tolist()
-            avg_size = np.average(sizes, weights=weights, axis=0).tolist()
-
-            # Determine occlusion status (most frequent value)
-            occlusion_status = max(
-                [m['derived_occlusion_status'] for m in object_metadata],
-                key=[m['derived_occlusion_status'] for m in object_metadata].count
-            )
-
-            avg_confidence = float(np.mean(confidences))
-
-            # Condensed motion metadata
-            latest_timestamp = max(object_metadata, key=lambda x: self._parse_timestamp(x['raw_timestamp']))['raw_timestamp']
-            merged["condensed_motion_metadata"] = {
-                "raw_location": avg_location,
-                "raw_velocity": avg_velocity,
-                "derived_dynamic_size": avg_size,
-                "derived_visibility": visibilities,
-                "derived_occlusion_status": occlusion_status,
-                "derived_sensor_fusion_confidence": avg_confidence,
-                "raw_timestamp": latest_timestamp
+            merged_frame = {
+                "raw_object_id": object_id,
+                "raw_category": base_frame.get('raw_category', 'unknown'),
+                "raw_static_size": base_frame.get('raw_static_size', [0, 0, 0]),
+                "motion_metadata": []
             }
 
-            # Condensed info
-            time_stamps = [self._parse_timestamp(m['raw_timestamp']) for m in object_metadata]
-            time_span = max(time_stamps) - min(time_stamps)
-            position_variance = float(np.var(locations, axis=0).mean())
+            # Collect all valid motion metadata
+            all_metadata = []
+            for frame in [base_frame] + frames_to_merge:
+                if frame.get('motion_metadata'):
+                    all_metadata.extend(frame['motion_metadata'])
 
-            merged["condensed_info"] = {
-                "frame_count": len(frames),
-                "time_span": time_span,
-                "position_variance": position_variance,
-                "average_confidence": avg_confidence,
-                "source_frame_ids": source_frame_ids
-            }
+            # Sort by timestamp if available
+            all_metadata.sort(key=lambda x: x.get('raw_timestamp', ''))
+            
+            # Remove duplicates based on timestamp
+            seen_timestamps = set()
+            unique_metadata = []
+            for metadata in all_metadata:
+                timestamp = metadata.get('raw_timestamp')
+                if timestamp and timestamp not in seen_timestamps:
+                    seen_timestamps.add(timestamp)
+                    unique_metadata.append(metadata)
 
-            # Generate deterministic frame_id
-            merged["frame_id"] = self._generate_frame_id(source_frame_ids)
+            merged_frame['motion_metadata'] = unique_metadata
+            return merged_frame
 
-            return merged
         except Exception as e:
-            logger.error(f"Error merging object frames: {e}", exc_info=True)
+            print(f"Error merging object frames: {str(e)}")
             return None
+        
+    def condense_frames(self, frames):
+        """
+        Condense object frames with proper error handling.
+        """
+        try:
+            if not frames:
+                print("Warning: No frames to condense")
+                return []
+
+            condensed_frames = []
+            current_group = []
+            
+            for frame in frames:
+                # Skip frames with no motion metadata
+                if not frame.get('motion_metadata'):
+                    continue
+                    
+                if not current_group:
+                    current_group = [frame]
+                else:
+                    # Check if frame should be merged with current group
+                    if self._should_merge_frame(current_group[0], frame):
+                        current_group.append(frame)
+                    else:
+                        # Merge current group and start new one
+                        merged = self.merge_object_frames(current_group[0], current_group[1:])
+                        if merged:
+                            condensed_frames.append(merged)
+                        current_group = [frame]
+
+            # Handle last group
+            if current_group:
+                merged = self.merge_object_frames(current_group[0], current_group[1:])
+                if merged:
+                    condensed_frames.append(merged)
+
+            return condensed_frames
+
+        except Exception as e:
+            print(f"Error in frame condensation: {str(e)}")
+            return []
+
+    def _should_merge_frame(self, frame1, frame2):
+        """
+        Determine if two frames should be merged.
+        """
+        try:
+            # Get metadata from frames
+            metadata1 = frame1.get('motion_metadata', [])
+            metadata2 = frame2.get('motion_metadata', [])
+            
+            # Skip if either frame has no metadata
+            if not metadata1 or not metadata2:
+                return False
+                
+            # Compare timestamps
+            time1 = metadata1[0].get('raw_timestamp', '')
+            time2 = metadata2[0].get('raw_timestamp', '')
+            
+            if not time1 or not time2:
+                return False
+                
+            # Convert timestamps to datetime objects
+            dt1 = datetime.fromisoformat(time1)
+            dt2 = datetime.fromisoformat(time2)
+            
+            # Check if frames are within time window
+            time_diff = abs((dt2 - dt1).total_seconds())
+            return time_diff <= self.config.time_window
+
+        except Exception as e:
+            print(f"Error checking frame merge compatibility: {str(e)}")
+            return False

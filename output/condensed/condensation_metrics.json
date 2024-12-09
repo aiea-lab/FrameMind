@@ -1,11 +1,11 @@
 {
-  "timestamp": "2024-12-06T17:14:16.614853",
+  "timestamp": "2024-12-08T21:09:19.980721",
   "scene_token": "bebf5f5b2a674631ab5c88fd1aa9e87a",
   "statistics": {
     "object_frames": {
       "original": 140,
-      "condensed": 0,
-      "reduction_ratio": 1.0
+      "condensed": 37,
+      "reduction_ratio": 0.7357142857142858
     },
     "sample_frames": {
       "original": 41,

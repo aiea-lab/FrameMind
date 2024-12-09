@@ -38,6 +38,7 @@ from src.condensation.config import CondensationConfig
 from src.condensation.object_condenser import ObjectCondenser
 from src.condensation.sample_condenser import SampleCondenser
 from src.condensation.scene_condenser import SceneCondenser
+from src.condensation.metrics.confidence import ConfidenceMetrics
 
 from src.trajectory.config.trajectory_config import TrajectoryConfig
 from src.trajectory.analysis.trajectory_analyzer import TrajectoryAnalyzer
@@ -59,6 +60,10 @@ def main():
 
     output_dir = Path("output")
     output_dir.mkdir(exist_ok=True)
+
+    # Create condensed directory right away
+    condensed_dir = output_dir / "condensed"
+    condensed_dir.mkdir(exist_ok=True)
 
     # Initialize configuration
     config = NuScenesDataParserConfig(
@@ -102,16 +107,142 @@ def main():
     # Step 5: Initialize condensation
     print("\nInitializing frame condensation...")
     condenser_config = CondensationConfig(
-        time_window=0.1,
-        min_confidence=0.3,
-        max_position_gap=0.5, 
+        time_window=0.2,        # Increased from 0.1 for better grouping
+        min_confidence=0.3,     # Lowered from 0.7 for more detections
+        max_position_gap=2.0,   # Increased from 0.5 for better tracking
         output_dir=output_dir / "condensed"
     )
 
-    # Initialize condensers
+    confidence_metrics = ConfidenceMetrics()
     object_condenser = ObjectCondenser(condenser_config)
+
+    print("\nProcessing frames with confidence metrics...")
+    for frame in object_frames:
+        if 'motion_metadata' in frame:
+            for metadata in frame['motion_metadata']:
+                confidence = confidence_metrics.calculate_comprehensive_confidence({
+                    'raw_num_lidar_points': metadata.get('raw_num_lidar_points', 0),
+                    'raw_num_radar_points': metadata.get('raw_num_radar_points', 0),
+                    'derived_distance_to_ego': metadata.get('derived_distance_to_ego', 100),
+                    'derived_visibility': metadata.get('derived_visibility', 0),
+                    'derived_occlusion_status': metadata.get('derived_occlusion_status', 'Partially Occluded')
+                })
+                metadata['derived_sensor_fusion_confidence'] = confidence
+
+    # Perform condensation
+    print("\nPerforming frame condensation...")
+    condensed_objects = object_condenser.condense_frames(object_frames)
+
+    # Calculate and save metrics
+    metrics = {
+        'timestamp': datetime.now().isoformat(),
+        'scene_token': scene_token,
+        'statistics': {
+            'original_frames': len(object_frames),
+            'condensed_frames': len(condensed_objects),
+            'reduction_ratio': 1 - (len(condensed_objects) / len(object_frames)),
+            'average_confidence': np.mean([
+                np.mean([meta.get('derived_sensor_fusion_confidence', 0) 
+                        for meta in frame.get('motion_metadata', [])])
+                for frame in condensed_objects
+            ]) if condensed_objects else 0
+        },
+        'confidence_distribution': {
+            'min': np.min([meta.get('derived_sensor_fusion_confidence', 0) 
+                          for frame in condensed_objects 
+                          for meta in frame.get('motion_metadata', [])]) if condensed_objects else 0,
+            'max': np.max([meta.get('derived_sensor_fusion_confidence', 0) 
+                          for frame in condensed_objects 
+                          for meta in frame.get('motion_metadata', [])]) if condensed_objects else 0,
+            'mean': np.mean([meta.get('derived_sensor_fusion_confidence', 0) 
+                           for frame in condensed_objects 
+                           for meta in frame.get('motion_metadata', [])]) if condensed_objects else 0
+        }
+    }
+
+    # Save condensed frames and metrics
+    with open(condensed_dir / 'condensed_object_frames.json', 'w') as f:
+        json.dump(condensed_objects, f, cls=NumpyEncoder, indent=2)
+    
+    with open(condensed_dir / 'condensation_metrics.json', 'w') as f:
+        json.dump(metrics, f, cls=NumpyEncoder, indent=2)
+
+    # Print summary
+    print("\nProcessing Summary:")
+    print(f"Scene name: {nusc.get('scene', scene_token)['name']}")
+    print(f"Original frames: {len(object_frames)}")
+    print(f"Condensed frames: {len(condensed_objects)}")
+    print(f"Reduction ratio: {metrics['statistics']['reduction_ratio']*100:.1f}%")
+    print(f"Average confidence: {metrics['statistics']['average_confidence']:.2f}")
+    print(f"\nResults saved to: {condensed_dir}")
+
+
+    # Initialize condensers
     sample_condenser = SampleCondenser(condenser_config)
     scene_condenser = SceneCondenser(condenser_config)
+
+    print("\nProcessing frames with enhanced confidence metrics...")
+    
+    # Process object frames
+    for frame in object_frames:
+        if 'motion_metadata' in frame:
+            for metadata in frame['motion_metadata']:
+                confidence = confidence_metrics.calculate_comprehensive_confidence({
+                    'raw_num_lidar_points': metadata.get('raw_num_lidar_points', 0),
+                    'raw_num_radar_points': metadata.get('raw_num_radar_points', 0),
+                    'derived_distance_to_ego': metadata.get('derived_distance_to_ego', 100),
+                    'derived_visibility': metadata.get('derived_visibility', 0),
+                    'derived_occlusion_status': metadata.get('derived_occlusion_status', 'Partially Occluded')
+                })
+                metadata['derived_sensor_fusion_confidence'] = confidence
+
+    # Perform condensation
+    print("\nPerforming frame condensation...")
+    condensed_objects = object_condenser.condense_frames(object_frames)
+    condensed_samples = sample_condenser.condense_frames(sample_frames)
+    condensed_scene = scene_condenser.condense_frames([scene_frame])
+
+    # Enhanced metrics calculation
+    metrics = {
+        'timestamp': datetime.now().isoformat(),
+        'scene_token': scene_token,
+        'statistics': {
+            'object_frames': {
+                'original': len(object_frames),
+                'condensed': len(condensed_objects),
+                'reduction_ratio': 1 - (len(condensed_objects) / len(object_frames)),
+                'average_confidence': np.mean([
+                    np.mean([meta.get('derived_sensor_fusion_confidence', 0) 
+                            for meta in frame.get('motion_metadata', [])])
+                    for frame in condensed_objects
+                ]) if condensed_objects else 0
+            },
+            'sample_frames': {
+                'original': len(sample_frames),
+                'condensed': len(condensed_samples),
+                'reduction_ratio': 1 - (len(condensed_samples) / len(sample_frames))
+            },
+            'scene_frames': {
+                'original': 1,
+                'condensed': len(condensed_scene)
+            }
+        },
+        'confidence_distribution': {
+            'min': np.min([meta.get('derived_sensor_fusion_confidence', 0) 
+                          for frame in condensed_objects 
+                          for meta in frame.get('motion_metadata', [])]) if condensed_objects else 0,
+            'max': np.max([meta.get('derived_sensor_fusion_confidence', 0) 
+                          for frame in condensed_objects 
+                          for meta in frame.get('motion_metadata', [])]) if condensed_objects else 0,
+            'mean': np.mean([meta.get('derived_sensor_fusion_confidence', 0) 
+                           for frame in condensed_objects 
+                           for meta in frame.get('motion_metadata', [])]) if condensed_objects else 0
+        }
+    }
+    condensed_objects = object_condenser.condense_frames(object_frames)
+    condensed_samples = sample_condenser.condense_frames(sample_frames)
+    condensed_scene = scene_condenser.condense_frames([scene_frame])
+
 
     # Step 6: Perform condensation
     print("Performing frame condensation...")

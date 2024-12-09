@@ -1,42 +1,31 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Optional
-import numpy as np
 from .config import CondensationConfig
+import logging
+
+logger = logging.getLogger(__name__)
 
 class BaseCondenser(ABC):
-    """Base class for all condensers"""
+    """Base class for frame condensation"""
     
     def __init__(self, config: CondensationConfig):
         self.config = config
-        self.config.output_dir.mkdir(parents=True, exist_ok=True)
     
     @abstractmethod
     def condense_frames(self, frames: List[Dict]) -> List[Dict]:
-        """Condense frames based on implementation strategy"""
+        """Condense multiple frames into a reduced set"""
         pass
-
-    def validate_frame(self, frame: Dict) -> bool:
-        """Basic frame validation"""
-        try:
-            if 'motion_metadata' not in frame:
-                return False
-            metadata = frame['motion_metadata'][0]
-            required = ['timestamp', 'location']
-            return all(field in metadata for field in required)
-        except Exception:
-            return False
-
-    def _calculate_time_difference(self, t1: str, t2: str) -> float:
-        """Calculate time difference between timestamps"""
-        time1 = float(t1.split('.')[-1])
-        time2 = float(t2.split('.')[-1])
-        return abs(time2 - time1)
-
-    def _validate_motion_data(self, metadata: Dict) -> bool:
-        """Validate motion data"""
-        try:
-            velocity = np.array(metadata.get('velocity', [0, 0, 0]))
-            speed = np.linalg.norm(velocity)
-            return speed <= self.config.max_velocity
-        except Exception:
-            return False
+        
+    def _calculate_time_difference(self, time1: float, time2: float) -> float:
+        """Calculate absolute time difference between frames"""
+        return abs(float(time1) - float(time2))
+        
+    def save_results(self, frames: List[Dict], filename: str) -> None:
+        """Save condensed frames to output directory"""
+        if self.config.output_dir is None:
+            logger.warning("No output directory specified, skipping save")
+            return
+            
+        output_path = self.config.output_dir / filename
+        with open(output_path, 'w') as f:
+            json.dump(frames, f, indent=2)

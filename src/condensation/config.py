@@ -5,7 +5,7 @@ from pathlib import Path
 class CondensationConfig:
     """Configuration for frame condensation"""
     # Time parameters
-    time_window: float = 0.1          # seconds
+    time_window: float = 0.2          # seconds
     min_time_gap: float = 0.02        # minimum time between frames
     max_time_gap: float = 0.5         # maximum time gap to consider
 
@@ -25,3 +25,8 @@ class CondensationConfig:
 
     # Output settings
     output_dir: Path = Path("output/condensed")
+
+    def __post_init__(self):
+        if self.output_dir is not None:
+            self.output_dir = Path(self.output_dir)
+            self.output_dir.mkdir(parents=True, exist_ok=True)
