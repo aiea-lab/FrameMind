@@ -1,6 +1,7 @@
 from typing import List, Dict, Optional
 import numpy as np
 from datetime import datetime
+import matplotlib.pyplot as plt
 
 class TrajectoryGenerator:
     """Generate trajectories from condensed frame data"""
@@ -23,28 +24,41 @@ class TrajectoryGenerator:
                 
         return trajectories
 
-    def _process_single_trajectory(self, frame: Dict) -> Optional[Dict]:
-        """Process trajectory for a single object"""
+    def _process_single_trajectory(self, frame: Dict, ego_vehicle_global_position: Optional[List[float]] = None) -> Optional[Dict]:
+        """Process trajectory for a single object."""
         try:
             positions = []
             velocities = []
             timestamps = []
-            
+
             # Extract tracking info
             for pos_data in frame['tracking_info']['positions']:
                 positions.append(pos_data['location'])
                 velocities.append(pos_data['velocity'])
                 timestamps.append(pos_data['timestamp'])
-            
+
             if len(positions) < self.min_points:
                 return None
 
             positions = np.array(positions)
             velocities = np.array(velocities)
-            
+
+            # Apply offsets to positions if ego vehicle position is provided
+            if ego_vehicle_global_position is not None:
+                if len(ego_vehicle_global_position) == 3 and positions.shape[1] == 3:
+                    positions -= ego_vehicle_global_position  # Apply offsets for x, y, z
+                elif len(ego_vehicle_global_position) == 2 and positions.shape[1] == 3:
+                    positions[:, :2] -= ego_vehicle_global_position  # Offset only x and y
+                else:
+                    raise ValueError("Mismatch in dimensions between positions and ego_vehicle_global_position.")
+
+            # Apply scaling to positions (optional, for visualization purposes)
+            scale_factor = 10  # Example scaling factor
+            positions /= scale_factor
+
             # Calculate trajectory metrics
             motion_metrics = self._calculate_motion_metrics(positions, velocities)
-            
+
             return {
                 "object_info": {
                     "object_id": frame['object_info']['object_id'],
@@ -61,7 +75,6 @@ class TrajectoryGenerator:
                 "motion_metrics": motion_metrics,
                 "predictions": self._generate_predictions(positions, velocities)
             }
-            
         except Exception as e:
             print(f"Error processing trajectory: {e}")
             return None
@@ -133,6 +146,34 @@ class TrajectoryGenerator:
             print(f"Error generating predictions: {e}")
             return {}
 
+    def visualize_trajectory(self, trajectory: Dict, title: str = "Trajectory View") -> None:
+        """
+        Visualize a trajectory as a scatter plot.
+        
+        Parameters:
+        - trajectory: Dict containing trajectory data with 'positions' and 'timestamps'.
+        - title: Title of the plot.
+        """
+        try:
+            positions = np.array(trajectory['trajectory']['positions'])
+            timestamps = trajectory['trajectory']['timestamps']
+
+            if positions.shape[1] != 2:
+                raise ValueError("Only 2D trajectories can be visualized with this method.")
+
+            # Create scatter plot
+            plt.figure(figsize=(8, 6))
+            plt.scatter(positions[:, 0], positions[:, 1], c=timestamps, cmap='viridis', label="Trajectory Points")
+            plt.colorbar(label="Timestamps")
+            plt.xlabel("X Position")
+            plt.ylabel("Y Position")
+            plt.title(title)
+            plt.grid(True)
+            plt.legend()
+            plt.show()
+        except Exception as e:
+            print(f"Error visualizing trajectory: {e}")
+
     def _classify_motion(self, is_stationary: bool, is_turning: bool, speed: float) -> str:
         """Classify the type of motion"""
         if is_stationary:
@@ -151,5 +192,23 @@ class TrajectoryGenerator:
             return float(np.clip(velocity_consistency, 0.0, 1.0))
         except:
             return 0.0
+        
+    def process_positions(self,trajectories: Dict, ego_vehicle_position: List[float]) -> Dict:
+        """
+        Offset all object positions relative to the ego vehicle's position.
+        """
+        for obj_id, traj in trajectories.items():
+            positions = np.array(traj['trajectory']['positions'])
+            
+            # Check dimensions and handle mismatched dimensions
+            if len(ego_vehicle_position) == 2 and positions.shape[1] == 3:
+                positions[:, :2] -= ego_vehicle_position  # Offset x, y only
+            elif len(ego_vehicle_position) == 3 and positions.shape[1] == 3:
+                positions -= ego_vehicle_position  # Offset x, y, z
+            else:
+                raise ValueError("Mismatch in dimensions between positions and ego_vehicle_position.")
+
+            traj['trajectory']['positions'] = positions.tolist()
+        return trajectories
 
 # After generating condensed output

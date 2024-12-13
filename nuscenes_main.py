@@ -46,6 +46,9 @@ from src.condensation.config import CondensationParams
 from src.trajectory.config.trajectory_config import TrajectoryConfig
 from src.trajectory.analysis.trajectory_analyzer import TrajectoryAnalyzer
 from src.trajectory.visualization.trajectory_visualizer import TrajectoryVisualizer
+from src.trajectory.visualization.dashboard_generator import DashboardGenerator
+from src.trajectory.generator import TrajectoryGenerator
+
 
 # from logger import get_logger
 sys.path.append(str(Path(__file__).resolve().parent.parent))
@@ -89,7 +92,7 @@ def main():
 
     # Step 2: Select a Scene
     # Example: Select the third scene in the dataset
-    scene_token = nusc.scene[3]['token'] #scene-0655 - Parking lot, parked cars, jaywalker, be... [18-08-27 15:51:32]   20s, boston-seaport, #anns:2332
+    scene_token = nusc.scene[4]['token'] #scene-0655 - Parking lot, parked cars, jaywalker, be... [18-08-27 15:51:32]   20s, boston-seaport, #anns:2332
     print(f"Processing scene: {nusc.get('scene', scene_token)['name']}")
     
 
@@ -194,7 +197,19 @@ def main():
     )
 
     # Generate trajectories
+    trajectory_generator = TrajectoryGenerator(min_points=3, prediction_horizon=2.0)
     trajectory_results = trajectory_generator.generate_trajectories(condensed_output)
+
+    # Offset positions relative to ego vehicle
+    ego_vehicle_global_position = [0, 0, 0]   # Example: ego vehicle's position
+    trajectories = trajectory_generator.process_positions(trajectory_results, ego_vehicle_global_position)
+    
+    # Optional: Separate or scale trajectories for debugging
+    offset = 100
+    for i, (obj_id, traj) in enumerate(trajectories.items()):
+        positions = np.array(traj['trajectory']['positions'])
+        positions[:, 0] += i * offset  # Separate objects in X direction for better visualization
+        traj['trajectory']['positions'] = positions.tolist()
 
     # Save trajectory results
     trajectory_dir = output_dir / "trajectory"
@@ -207,13 +222,42 @@ def main():
     print("\nTrajectory Analysis Summary:")
     print(f"Analyzed trajectories for {len(trajectory_results)} objects")
 
+    # Step 7: Generate visualization and dashboard
+    print("\nGenerating dashboard and visualizations...")
+    dashboard_generator = DashboardGenerator()
+
+   # Generate overview plot
+    overview_plot_path = trajectory_dir / "overview.png"
+    dashboard_generator.create_overview_plot(trajectory_results, str(overview_plot_path))
+    print(f"Overview plot saved to: {overview_plot_path}")
+
+    # Generate HTML dashboard
+    dashboard_dir = trajectory_dir / "html"
+    dashboard_dir.mkdir(exist_ok=True)
+    metrics = {obj_id: trajectory['motion_metrics'] for obj_id, trajectory in trajectory_results.items()}
+    dashboard_generator.generate_html_dashboard(trajectory_results, metrics, dashboard_dir)
+    print(f"Dashboard saved to: {dashboard_dir / 'dashboard.html'}")
+
+    # Step 8: Visualizations
+    visualizer = TrajectoryVisualizer()
+    vis_dir = trajectory_dir / "visualizations"
+    vis_dir.mkdir(exist_ok=True)
+    visualizer.create_analysis_dashboard(trajectory_results, vis_dir)
+    print(f"Visualizations saved to: {vis_dir}")
+
     for obj_id, trajectory in trajectory_results.items():
         print(f"\nObject {obj_id}:")
         print(f"Category: {trajectory['object_info']['category']}")
         print(f"Motion type: {trajectory['motion_metrics']['motion_type']}")
         print(f"Average speed: {trajectory['motion_metrics']['average_speed']:.2f} m/s")
         print(f"Total distance: {trajectory['motion_metrics']['total_distance']:.2f} m")
-        
+
+    # Generating trajectory sections for HTML
+    print("\nGenerating trajectory HTML sections...")
+    trajectory_html_dir = trajectory_dir / "html"
+    trajectory_html_dir.mkdir(exist_ok=True)
+    
+       
     # After generating trajectories
     print("\nGenerating trajectory visualizations...")
     visualizer = TrajectoryVisualizer()

@@ -1,8 +1,8 @@
 {
-  "timestamp": "2024-12-09T14:51:16.871925",
-  "scene_token": "bebf5f5b2a674631ab5c88fd1aa9e87a",
+  "timestamp": "2024-12-12T18:06:08.847356",
+  "scene_token": "2fc3753772e241f2ab2cd16a784cc680",
   "statistics": {
-    "frame_reduction_ratio": 0.7357142857142858,
+    "frame_reduction_ratio": 0.4137931034482759,
     "avg_tracking_confidence": 0.0,
     "avg_classification_confidence": 0.0,
     "processing_time": 0.15
