@@ -1,0 +1,77 @@
+{
+  "object_anomalies": {
+    "e75bb479e10c426e9dcf5ff1afefa84d": {
+      "is_anomalous": 0,
+      "object_category": "vehicle.truck"
+    },
+    "59064285ad664ee28b4bcb3d322334f9": {
+      "is_anomalous": 0,
+      "object_category": "vehicle.car"
+    },
+    "74f6177084924f27a7c2a0d9b7fe0085": {
+      "is_anomalous": 0,
+      "object_category": "movable_object.trafficcone"
+    },
+    "4d616eaf86724fedb29f72f96b7feb62": {
+      "is_anomalous": 0,
+      "object_category": "movable_object.trafficcone"
+    },
+    "82d680066ddd465dbd3b22fd6a66ed70": {
+      "is_anomalous": 0,
+      "object_category": "vehicle.car"
+    },
+    "b327acc1048e44889108740b2304dabc": {
+      "is_anomalous": 0,
+      "object_category": "vehicle.truck"
+    },
+    "ba9b515701e248b0a00c814447cea8a1": {
+      "is_anomalous": 0,
+      "object_category": "vehicle.bicycle"
+    },
+    "9931995543b74a82ae95928ef340fef6": {
+      "is_anomalous": 0,
+      "object_category": "vehicle.car"
+    },
+    "4b086f653d5a47a79f73f1d4a4d956d8": {
+      "is_anomalous": 0,
+      "object_category": "human.pedestrian.adult"
+    },
+    "3c16d6997c70488ab7e9dfd0fbec962e": {
+      "is_anomalous": 0,
+      "object_category": "human.pedestrian.adult"
+    },
+    "38798e421c51439f883ead7073ce7b79": {
+      "is_anomalous": 0,
+      "object_category": "vehicle.car"
+    },
+    "3ca372ae40fc4727a1e0e245122ccf94": {
+      "is_anomalous": 0,
+      "object_category": "vehicle.car"
+    },
+    "11ae216987c84c0abefef802331df41c": {
+      "is_anomalous": 0,
+      "object_category": "vehicle.car"
+    },
+    "c27a467cdb1c4643801745a2574d6a46": {
+      "is_anomalous": 0,
+      "object_category": "vehicle.car"
+    },
+    "415f26c98be6425aa9bf929e724e9b90": {
+      "is_anomalous": 0,
+      "object_category": "vehicle.car"
+    },
+    "2c74f27891164c9182d5a0d0102dca8c": {
+      "is_anomalous": 0,
+      "object_category": "vehicle.truck"
+    },
+    "eb28d3eeb8ac46b8ac47848a18d41dc5": {
+      "is_anomalous": 0,
+      "object_category": "vehicle.car"
+    }
+  },
+  "statistics": {
+    "total_objects": 17,
+    "anomalous_objects": 0,
+    "anomaly_percentage": 0.0
+  }
+}
