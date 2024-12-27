@@ -1,4 +1,4 @@
-# Novel Architecture 
+# Novel Frames Architecture
 
 <!--- BADGES: START --->
 
