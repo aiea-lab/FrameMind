@@ -1,4 +1,4 @@
-# Frame-Based Monitoring
+# Novel Architecture 
 
 <!--- BADGES: START --->
 
