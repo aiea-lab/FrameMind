@@ -58,40 +58,6 @@ cd scripts/nuscenes_main.py
 - Install dependencies
 pip install -r requirements.txt
 
-#Usage
-- Import the static frame condensation module
-from condensation import StaticFrameCondensor
-
-- Initialize the condensor with your data
-condensor = StaticFrameCondensor(data)
-
-- Run the condensation process
-condensed_data = condensor.condense()
-
-- Save or analyze the condensed data
-save(condensed_data, 'output_file_path')
-
-#Examples
-We are using the Boston Scene for the parsing process
-Parsed Frames:
-## Frame(name="Frame1", slots={'position': [1.0, 2.0, 3.0], 'velocity': [0.5, 0.0, 1.0], ...})
-## Frame(name="Frame2", slots={'position': [1.5, 2.5, 3.5], 'velocity': [0.6, 0.1, 0.9], ...})
-
-Symbolic Frames:
-## SymbolicFrame(name="Frame1", data={'position_symbol': "Pos1", 'velocity_symbol': "Vel1", ...})
-## SymbolicFrame(name="Frame2", data={'position_symbol': "Pos2", 'velocity_symbol': "Vel2", ...})
-
-## Condensed Frame Data:
-## {
-##    'position': [1.25, 2.25, 3.25],
-##    'velocity': [0.55, 0.05, 0.95],
-##    ...
-## }
-
-## Object Trajectories:
-## Object ID: obj_1, Trajectory: [[1.0, 2.0, 3.0], [1.5, 2.5, 3.5], ...]
-## Object ID: obj_2, Trajectory: [[2.0, 1.0, 0.5], [2.5, 1.5, 1.0], ...]
-
 
 
 ** Contributions are welcome! Please fork this repository, create a branch, and submit a pull request with your changes. ** 
